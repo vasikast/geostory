@@ -845,16 +845,15 @@
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null;      // 'distance' | 'area' | null
   let pts = [];                // [[lng,lat], ...]
-  let sketch = null;           // final shape
-  let ghost = null;            // live preview
+  let sketch = null;           // πρόχειρο σχέδιο όσο μετράμε (interactive:false)
+  let ghost  = null;           // live preview
 
-  // HUD δίπλα στον κέρσορα
+  // HUD δίπλα στον κέρσορα (live μήκος/εμβαδό)
   const mapEl = document.getElementById('map');
   const hud = document.createElement('div');
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  // helpers
   function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
   function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
   function areaFmt(m2){
@@ -914,40 +913,72 @@
     measureMode = mode;
     pts = [];
     setCursor(true);
-    map.doubleClickZoom.disable();
+    map.doubleClickZoom.disable(); // 🔒 μην κάνει zoom το dblclick όσο μετράμε
     hud.style.display='block';
     map.on('mousemove', onMouseMove);
   }
+
+  function bindResultHover(layer, latlng, content){
+    // όταν κλείνεις το popup, αν ξαναπεράσεις από πάνω να ξανανοίγει
+    layer._measure = { latlng, content };
+    layer.on('mouseover', ()=>{
+      const m = layer._measure;
+      if(!m) return;
+      L.popup({ closeButton:true })
+        .setLatLng(m.latlng)
+        .setContent(m.content)
+        .openOn(map);
+    });
+  }
+
   function finishMeasure(){
     if(!pts.length){ cancelMeasure(); return; }
+
+    // Φτιάχνουμε τελικό, interactive layer (για hover popup)
+    let resultLayer = null;
+    let latlngForPopup = null;
+    let html = '';
 
     if(measureMode==='distance' && pts.length>=2){
       const line = turf.lineString(pts);
       const lenKm = turf.length(line, {units:'kilometers'});
       const mid = turf.along(line, lenKm/2, {units:'kilometers'}).geometry.coordinates; // [lng,lat]
-      L.popup({ closeButton:true })
-        .setLatLng([mid[1], mid[0]])
-        .setContent(`<strong>Length</strong><br>${kmFmt(lenKm)}`)
-        .openOn(map);
+      latlngForPopup = L.latLng(mid[1], mid[0]);
+      html = `<strong>Length</strong><br>${kmFmt(lenKm)}`;
+      resultLayer = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3,interactive:true});
     }else if(measureMode==='area' && pts.length>=3){
       const poly = turf.polygon([[...pts, pts[0]]]);
       const a = turf.area(poly);
       const c = turf.centroid(poly).geometry.coordinates; // [lng,lat]
-      L.popup({ closeButton:true })
-        .setLatLng([c[1], c[0]])
-        .setContent(`<strong>Area</strong><br>${areaFmt(a)}`)
-        .openOn(map);
+      latlngForPopup = L.latLng(c[1], c[0]);
+      html = `<strong>Area</strong><br>${areaFmt(a)}`;
+      resultLayer = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:true});
     }
 
-    // αφήνουμε το τελικό sketch πάνω στο χάρτη μέχρι Clear
+    // Καθάρισε πρόχειρα layers και πρόσθεσε το τελικό
+    clearGhost();
+    clearSketch();
+    if(resultLayer){
+      resultLayer.addTo(measureLayer);
+      // Άνοιξε popup τώρα…
+      L.popup({ closeButton:true })
+        .setLatLng(latlngForPopup)
+        .setContent(html)
+        .openOn(map);
+      // …και ξανάνοιγέ το αυτόματα σε mouseover
+      bindResultHover(resultLayer, latlngForPopup, html);
+    }
+
     stopHUD();
     setCursor(false);
     measureMode = null;
     pts = [];
-    clearGhost();
-    map.doubleClickZoom.enable();
+
+    // ⚠️ Μικρή καθυστέρηση πριν το re-enable, για να μην “πιάσει” το ίδιο dblclick
+    setTimeout(()=> map.doubleClickZoom.enable(), 120);
     map.off('mousemove', onMouseMove);
   }
+
   function cancelMeasure(){
     pts = [];
     clearGhost();
@@ -955,9 +986,10 @@
     stopHUD();
     setCursor(false);
     measureMode = null;
-    map.doubleClickZoom.enable();
+    setTimeout(()=> map.doubleClickZoom.enable(), 0);
     map.off('mousemove', onMouseMove);
   }
+
   function clearAllMeasurements(){
     cancelMeasure();
     measureLayer.clearLayers();
@@ -973,34 +1005,29 @@
   // -- Clicks (μονό κλικ: προσθήκη κορυφής)
   map.on('click', (e)=>{
     if(!measureMode) return;
-    // αγνόησε το “δεύτερο” κλικ της διπλο-κλικ ενέργειας
-    if(e.originalEvent && e.originalEvent.detail > 1) return;
+    if(e.originalEvent && e.originalEvent.detail > 1) return; // αγνόησε το 2ο κλικ του dblclick
     const ll = e.latlng; pts.push([ll.lng, ll.lat]);
     updateSketch();
   });
 
-  // -- Double click: προσθήκη τελευταίας κορυφής (αν χρειάζεται) και finish
+  // -- Double click: πρόσθεσε τελικό σημείο (αν λείπει) και τελείωσε
   map.on('dblclick', (e)=>{
     if(!measureMode) return;
+    L.DomEvent.preventDefault(e);
     L.DomEvent.stop(e);
     const ll = e.latlng;
     const last = pts[pts.length-1];
     const cur = [ll.lng, ll.lat];
-    if(!sameLL(last, cur)) pts.push(cur); // πρόσθεσε τελικό σημείο μόνο αν δεν είναι ήδη ίδιο
+    if(!sameLL(last, cur)) pts.push(cur);
     updateSketch();
     finishMeasure();
   });
 
-  // Επιπλέον ασφάλεια: DOM-level capture για dblclick (σε edge cases)
-  mapEl.addEventListener('dblclick', (ev)=>{
+  // Επιπλέον ασφάλεια: DOM-capture για dblclick (να ΜΗ ζουμάρει)
+  document.getElementById('map').addEventListener('dblclick', (ev)=>{
     if(!measureMode) return;
     ev.preventDefault();
-    const latlng = map.mouseEventToLatLng(ev);
-    const last = pts[pts.length-1];
-    const cur = [latlng.lng, latlng.lat];
-    if(!sameLL(last, cur)) pts.push(cur);
-    updateSketch();
-    finishMeasure();
+    ev.stopPropagation();
   }, true);
 
   // ESC για ακύρωση
