@@ -17,6 +17,9 @@
 <!-- (Προαιρετικά) GeoPackage reader για browser -->
 <script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
 
+<!-- Turf.js για μετρήσεις -->
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+
 <!-- Attribute Window styles (shared με Viewer) -->
 <link rel="stylesheet" href="/public/css/attrwin.css?v=3" />
 
@@ -90,6 +93,13 @@
   .badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--line)}
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
+
+  /* Measure buttons look */
+  .leaflet-control-measure .btn{
+    padding:6px 10px;
+    border-radius:10px;
+    font-weight:600;
+  }
 </style>
 </head>
 <body>
@@ -265,12 +275,10 @@
   <script type="module">
     import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
 
-    // Μην περνάνε events προς τον χάρτη όταν δουλεύεις στο παράθυρο
     const winEl = document.getElementById('attrwin');
     ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
       .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
 
-    // Διαθέσιμες global refs για μη-module script
     window.openAttrWindow = openAttrWindow;
     window.setAttrData = setAttrData;
   </script>
@@ -638,7 +646,6 @@
   };
 
   // ---------- ATTRIBUTE TABLE (Editor) ----------
-  // Zoom-to σε κάθε εγγραφή, χωρίς αλλαγές στο attrwin.js
   const __fidToFeature = new Map();
 
   function zoomToFeature(feat){
@@ -664,33 +671,19 @@
     const tbody = table.querySelector('tbody');
     if(!thead || !tbody) return;
 
-    // headers
     const headers = Array.from(thead.querySelectorAll('th'));
     const names = headers.map(h=>h.textContent.trim());
     let fidIdx = names.indexOf('__fid');
-    // κρύψε τη στήλη __fid (βοηθητική)
-    if(fidIdx >= 0){
-      headers[fidIdx].style.display='none';
-    }
-    // πρόσθεσε "Actions" αν δεν υπάρχει
+    if(fidIdx >= 0){ headers[fidIdx].style.display='none'; }
     if(names.indexOf('Actions') === -1){
-      const th = document.createElement('th');
-      th.textContent = 'Actions';
+      const th = document.createElement('th'); th.textContent = 'Actions';
       thead.querySelector('tr').appendChild(th);
     }
-
-    // rows
     Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
-      const cells = Array.from(tr.children);
-      // απόφυγε διπλές προσθήκες
       if(tr.dataset.zoomAugmented === '1') return;
-
-      // κρύψε __fid κελί αν υπάρχει
+      const cells = Array.from(tr.children);
       if(fidIdx >= 0 && cells[fidIdx]) cells[fidIdx].style.display='none';
-
-      // βρες το __fid από το αντίστοιχο κελί
       const fid = (fidIdx >= 0 && cells[fidIdx]) ? cells[fidIdx].textContent.trim() : null;
-
       const td = document.createElement('td');
       const btn = document.createElement('button');
       btn.className = 'btn btn-sm';
@@ -698,12 +691,10 @@
       btn.addEventListener('click', (e)=>{ e.stopPropagation(); if(fid) zoomToFeature(__fidToFeature.get(fid)); });
       td.appendChild(btn);
       tr.appendChild(td);
-
       tr.dataset.zoomAugmented = '1';
     });
   }
 
-  // Παρατήρηση αλλαγών στον πίνακα (π.χ. search) για να ξανα-προσαρμόζουμε τα κουμπιά
   const __observer = new MutationObserver(()=> augmentAttrTableWithZoom());
   __observer.observe(document.getElementById('attrwin'), { subtree:true, childList:true });
 
@@ -718,9 +709,108 @@
       return { __fid: fid, id: f.id ?? (i+1), ...f.properties };
     });
     window.openAttrWindow(rows, { title: `Attributes • ${LYR.name}` });
-    // Μικρή καθυστέρηση ώστε να έχει render-άρει πρώτα ο πίνακας
     setTimeout(augmentAttrTableWithZoom, 0);
   }
+
+  // ---------- MEASURE TOOLS (top-right) ----------
+  const measureLayer = L.featureGroup().addTo(map);
+  let measureMode = null; // 'distance' | 'area' | null
+  let sketch = null;      // Leaflet layer (polyline/polygon)
+  let pts = [];           // [[lng,lat], ...]
+  const readout = L.control({position:'bottomright'});
+  readout.onAdd = function(){ const div=L.DomUtil.create('div','leaflet-bar'); div.style.padding='6px 8px'; div.style.font='13px system-ui'; div.style.background='color-mix(in oklab, var(--panel) 85%, transparent)'; div.style.border='1px solid var(--line)'; div.style.borderRadius='8px'; div.style.display='none'; this._el=div; return div; };
+  readout.addTo(map);
+
+  function setCursor(active){
+    const el = document.getElementById('map');
+    el.style.cursor = active ? 'crosshair' : '';
+  }
+  function formatLen(km){
+    return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`;
+  }
+  function formatArea(m2){
+    if(m2 >= 1e6) return `${(m2/1e6).toFixed(2)} km²`;
+    if(m2 >= 1e4) return `${(m2/1e4).toFixed(2)} ha`;
+    return `${m2.toFixed(0)} m²`;
+  }
+  function updateSketch(){
+    if(!pts.length) return;
+    if(sketch) measureLayer.removeLayer(sketch);
+    if(measureMode==='distance'){
+      sketch = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3});
+      const line = turf.lineString(pts);
+      const lenKm = turf.length(line, {units:'kilometers'});
+      readout._el.textContent = `Length: ${formatLen(lenKm)}`;
+      readout._el.style.display='block';
+    }else if(measureMode==='area'){
+      if(pts.length<2){ readout._el.style.display='none'; }
+      sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1});
+      if(pts.length>=3){
+        const poly = turf.polygon([[...pts, pts[0]]]);
+        const a = turf.area(poly);
+        readout._el.textContent = `Area: ${formatArea(a)}`;
+        readout._el.style.display='block';
+      }
+    }
+    sketch && sketch.addTo(measureLayer);
+  }
+  function startMeasure(mode){
+    cancelMeasure(); // reset
+    measureMode = mode;
+    setCursor(true);
+    map.doubleClickZoom.disable();
+    readout._el.textContent = (mode==='distance' ? 'Click to add points • Double-click to finish • Esc to cancel' : 'Click to add vertices • Double-click to finish • Esc to cancel');
+    readout._el.style.display='block';
+  }
+  function finishMeasure(){
+    setCursor(false);
+    measureMode = null;
+    pts = [];
+    sketch = null;
+    map.doubleClickZoom.enable();
+    readout._el.style.display='none';
+  }
+  function cancelMeasure(){
+    pts = [];
+    if(sketch){ measureLayer.removeLayer(sketch); sketch=null; }
+    setCursor(false);
+    measureMode = null;
+    map.doubleClickZoom.enable();
+    readout._el.style.display='none';
+  }
+
+  map.on('click', (e)=>{
+    if(!measureMode) return;
+    const ll = e.latlng; pts.push([ll.lng, ll.lat]);
+    updateSketch();
+  });
+  map.on('dblclick', (e)=>{
+    if(!measureMode) return;
+    L.DomEvent.stop(e);
+    updateSketch(); // final update
+    // αφήνουμε το τελικό sketch πάνω στο χάρτη και βγαίνουμε από measure
+    finishMeasure();
+  });
+  L.DomEvent.on(document, 'keydown', (e)=>{
+    if(e.key==='Escape') cancelMeasure();
+  });
+
+  // Custom control buttons (top-right)
+  const MeasureControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function(){
+      const container = L.DomUtil.create('div','leaflet-control leaflet-control-measure leaflet-bar');
+      const btnDist = L.DomUtil.create('a','',container); btnDist.href='#'; btnDist.title='Measure distance'; btnDist.innerHTML='📏';
+      const btnArea = L.DomUtil.create('a','',container); btnArea.href='#'; btnArea.title='Measure area'; btnArea.innerHTML='▱';
+      btnDist.style.padding='6px 10px'; btnArea.style.padding='6px 10px';
+      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('distance'); });
+      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('area'); });
+      // μην περνάνε events στον χάρτη όταν πατάς στα κουμπιά
+      L.DomEvent.disableClickPropagation(container);
+      return container;
+    }
+  });
+  map.addControl(new MeasureControl());
 
   // ---------- GENERATE LINK ----------
   document.getElementById('btnGenerate').addEventListener('click', async ()=>{
