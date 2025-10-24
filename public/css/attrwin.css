@@ -1,0 +1,88 @@
+:root{
+  --win-bg: #14161a;
+  --win-fg: #e7eaf0;
+  --win-muted:#9aa3b2;
+  --win-border:#2a2f36;
+  --win-header:#0f1114;
+  --accent:#4da3ff;
+  --danger:#ff5d5d;
+  --shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+
+.win{
+  position: fixed;
+  left: 40px; top: 60px;
+  width: 720px; height: 360px;
+  display: flex; flex-direction: column;
+  background: var(--win-bg);
+  color: var(--win-fg);
+  border: 1px solid var(--win-border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  z-index: 9999;
+  user-select: none;
+}
+
+.win.hidden{ display:none; }
+.win.minimized .win-body,
+.win.minimized .win-toolbar{ display:none; height:0; }
+.win-header{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:8px; padding:10px 12px;
+  background: var(--win-header);
+  border-bottom:1px solid var(--win-border);
+  cursor: move;
+}
+.win-title{ font-weight:600; }
+.win-actions{ display:flex; gap:6px; }
+.icon-btn{
+  background:transparent; color:var(--win-fg);
+  border:1px solid var(--win-border);
+  width:28px; height:28px; border-radius:6px; cursor:pointer;
+}
+.icon-btn:hover{ border-color: var(--accent); }
+.icon-btn.danger:hover{ border-color: var(--danger); color: var(--danger); }
+
+.win-toolbar{
+  display:flex; align-items:center; gap:8px;
+  padding:8px 10px; border-bottom:1px solid var(--win-border);
+  background: rgba(255,255,255,0.02);
+}
+.win-toolbar input[type="search"]{
+  flex:1; background:#0c0e11; color:var(--win-fg);
+  border:1px solid var(--win-border); border-radius:8px;
+  padding:8px 10px; outline:none;
+}
+.win-toolbar .muted{ color:var(--win-muted); font-size:12px; }
+
+.btn{ background:#1a2028; color:var(--win-fg); border:1px solid var(--win-border);
+  padding:8px 12px; border-radius:8px; cursor:pointer; }
+.btn:hover{ border-color:var(--accent); }
+.btn-sm{ padding:6px 10px; font-size:12px; }
+
+.win-body{ flex:1; overflow:auto; background:#0c0e11; }
+
+table{ width:100%; border-collapse: collapse; }
+thead th{
+  position: sticky; top:0;
+  background:#0f1114; border-bottom:1px solid var(--win-border);
+  text-align:left; padding:10px 8px; font-size:13px;
+}
+tbody td{
+  border-bottom:1px solid #11161c; padding:8px; font-size:13px;
+}
+tbody tr:hover{ background:#0f141a; }
+
+.win-resize-handle{
+  position:absolute; width:16px; height:16px;
+  right:4px; bottom:4px; cursor:nwse-resize;
+  background: linear-gradient(135deg, transparent 50%, var(--win-border) 50%);
+  border-radius:4px;
+}
+
+/* Toolbar πάνω από τον χάρτη (προαιρετικό styling) */
+.toolbar{
+  position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index: 4000;
+}
+.map{ position:absolute; inset:0; }
