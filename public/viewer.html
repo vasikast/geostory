@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="el" data-theme="auto">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GeoVisual Stories — Viewer</title>
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+<style>
+  :root{
+    --bg:#f7f8fc; --panel:#ffffff; --card:#ffffff; --text:#0b1020;
+    --muted:#5a678a; --line:#e6e8f2; --acc:#3b82f6; --acc2:#10b981;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
+    --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
+  }
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{
+      --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
+      --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
+    }
+  }
+
+  *{box-sizing:border-box} html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  header{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:8px 12px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .btn{background:#1a2448;border:1px solid #2b3c6a;color:#fff;padding:6px 10px;border-radius:10px;cursor:pointer}
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;min-height:calc(100vh - 50px);padding:12px}
+  .side{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:12px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+  h2{margin:0 0 6px 0;font-size:18px}
+  .desc{white-space:pre-wrap;color:var(--muted);font-size:14px}
+  .layers{display:flex;flex-direction:column;gap:8px}
+  .layer{background:color-mix(in oklab, var(--panel) 85%, transparent);border:1px solid var(--line);border-radius:12px;padding:8px 10px;font-size:13px}
+  .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  #map{height:100%;min-height:70vh;background:#0a0f1e}
+
+  /* Leaflet controls */
+  .leaflet-control-attribution,
+  .leaflet-control-scale-line,
+  .leaflet-bar a, .leaflet-bar a:hover{
+    background: color-mix(in oklab, var(--panel) 85%, transparent);
+    color: var(--muted);
+    border-color: var(--line);
+  }
+  .leaflet-bar a{ color: var(--text); }
+
+  /* Attribute table (viewer) */
+  .table-panel{display:none;position:fixed;left:16px;right:16px;bottom:16px;max-height:50vh;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:6000}
+  .table-panel.active{display:block}
+  .table-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .table-head .left{display:flex;gap:8px;align-items:center}
+  .table{width:100%;border-collapse:separate;border-spacing:0}
+  .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap}
+  .table th{position:sticky;top:0;background:color-mix(in oklab,var(--panel) 90%,transparent);cursor:pointer}
+  .table .num{font-variant-numeric:tabular-nums}
+  .badge2{border:1px solid var(--line);background:color-mix(in oklab,var(--panel) 85%,transparent);padding:4px 8px;border-radius:10px;font-size:12px}
+
+  @media (max-width: 900px){ .wrap{grid-template-columns:1fr} }
+</style>
+</head>
+<body>
+  <header>
+    <button id="themeToggle" class="btn" title="Theme">🌗 Theme</button>
+    <button id="openTable" class="btn" title="Attributes">🧾 Attributes</button>
+  </header>
+
+  <div class="wrap">
+    <aside class="side">
+      <div class="card">
+        <h2 id="title">Φόρτωση…</h2>
+        <div id="desc" class="desc"></div>
+      </div>
+      <div class="card">
+        <h3 style="margin:0 0 6px 0;font-size:14px">Στρώσεις</h3>
+        <div id="layerList" class="layers"></div>
+      </div>
+    </aside>
+    <section class="canvas"><div id="map"></div></section>
+  </div>
+
+  <!-- ATTRIBUTE TABLE (Viewer) -->
+  <div id="attrPanel" class="table-panel">
+    <div class="table-head">
+      <div class="left">
+        <strong id="attrTitle">Attributes</strong>
+        <select id="layerPick" class="badge2"></select>
+      </div>
+      <div>
+        <input id="attrSearch" type="search" placeholder="Search…" />
+        <button id="attrCsv" class="btn">⬇️ CSV</button>
+        <button id="attrClose" class="btn">✕</button>
+      </div>
+    </div>
+    <div style="overflow:auto">
+      <table class="table" id="attrTable"></table>
+    </div>
+  </div>
+
+<script>
+  // THEME TOGGLE (Viewer)
+  (function(){
+    const root = document.documentElement;
+    const KEY = 'geostory-theme';
+    const btn = document.getElementById('themeToggle');
+    const saved = localStorage.getItem(KEY);
+    if(saved){ root.setAttribute('data-theme', saved); }
+    function label(){ btn.title = `Theme: ${root.getAttribute('data-theme') || 'auto'}`; }
+    label();
+    btn.addEventListener('click', ()=>{
+      const cur = root.getAttribute('data-theme') || 'auto';
+      const next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
+      root.setAttribute('data-theme', next);
+      localStorage.setItem(KEY, next);
+      label();
+    });
+  })();
+
+(async function(){
+  const id = location.pathname.split('/').pop();
+  const r = await fetch('/api/stories/'+id);
+  if(!r.ok){ document.body.innerHTML='<p style="padding:20px;color:#fff">Το project δεν βρέθηκε ή έχει λήξει.</p>'; return; }
+  const { state } = await r.json();
+
+  document.getElementById('title').textContent = state.title || 'Untitled';
+  document.getElementById('desc').textContent = state.description || '';
+
+  const basemaps = {
+    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
+    topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'&copy; OpenTopoMap'})
+  };
+  const map = L.map('map'); (basemaps[state.basemap||'osm']).addTo(map);
+  map.setView([state.center.lat,state.center.lng], state.zoom||6);
+
+  function styleFrom(layer){
+    const st = layer.style || {};
+    const renderer = st.renderer || 'single';
+    if(renderer==='single'){
+      const s=st.single || {};
+      return (feature)=>({
+        color: s.stroke || '#4cc9f0',
+        weight: s.width ?? 2,
+        fillColor: s.fill || '#4361ee',
+        fillOpacity: layer.kind==='line'?0 : (s.opacity ?? 0.75)
+      });
+    } else if(renderer==='unique' && st.unique?.field){
+      const items = st.unique.legend||[];
+      return (feature)=>{
+        const v = String(feature.properties?.[st.unique.field]);
+        const it = items.find(x=> String(x.value)===v);
+        const color = it ? it.color : '#999';
+        return { color, weight:2, fillColor:color, fillOpacity: layer.kind==='line'?0 : 0.6 };
+      };
+    } else if(renderer==='graduated' && st.graduated?.field){
+      const br = st.graduated.breaks||[];
+      const cols = (st.graduated.legend||[]).map(x=>x.color);
+      return (feature)=>{
+        const val = Number(feature.properties?.[st.graduated.field]);
+        let idx = br.findIndex(b => val <= b);
+        if(idx<0) idx = cols.length-1;
+        const color = cols[idx] || '#999';
+        return { color, weight:2, fillColor:color, fillOpacity: layer.kind==='line'?0 : 0.6 };
+      };
+    }
+    return ()=>({ color:'#4cc9f0', weight:2, fillColor:'#4361ee', fillOpacity:0.6 });
+  }
+
+  function pointToLayerFrom(layer){
+    const st = layer.style || {};
+    if((st.renderer||'single')!=='single') return null; // για απλότητα, unique/graduated -> circle
+    const s = st.single || {};
+    if(s.pointShape==='square'){
+      return (f,latlng)=>{
+        const size = s.pointSize||10, color = s.fill||'#4361ee';
+        return L.rectangle([
+          [latlng.lat + 0.0001*size, latlng.lng - 0.0001*size],
+          [latlng.lat - 0.0001*size, latlng.lng + 0.0001*size]
+        ], { color, weight:1, fillColor:color, fillOpacity:0.8 });
+      };
+    }
+    return (f,latlng)=>{
+      const size = s.pointSize||10, color = s.fill||'#4361ee';
+      return L.circleMarker(latlng,{ radius:size, color, weight:1, fillColor:color, fillOpacity:0.8 });
+    };
+  }
+
+  const list=document.getElementById('layerList');
+  (state.layers||[]).forEach(LY=>{
+    const styleFn = styleFrom(LY);
+    const ptFn = pointToLayerFrom(LY);
+    const g=L.geoJSON(LY.gj,{
+      pointToLayer: ptFn || ((f,latlng)=> L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7})),
+      style: styleFn
+    });
+    if(LY.visible!==false) g.addTo(map);
+    try{ map.fitBounds(g.getBounds(),{padding:[20,20]}); }catch(_){}
+    const row=document.createElement('div'); row.className='layer'; row.textContent=LY.name||'Layer';
+    list.appendChild(row);
+  });
+
+  // ---------- ATTRIBUTE TABLE (Viewer) ----------
+  const AP = {
+    el: document.getElementById('attrPanel'),
+    btn: document.getElementById('openTable'),
+    close: document.getElementById('attrClose'),
+    title: document.getElementById('attrTitle'),
+    pick: document.getElementById('layerPick'),
+    table: document.getElementById('attrTable'),
+    search: document.getElementById('attrSearch'),
+    csv: document.getElementById('attrCsv'),
+    data: [], // [{name, headers, rows}]
+    cur: 0,
+    sortKey: null,
+    sortAsc: true
+  };
+  function buildAttrData(state){
+    AP.data = (state.layers||[]).map(LY=>{
+      const feats = (LY.gj?.features||[]);
+      const headers = new Set();
+      feats.forEach(f=> Object.keys(f.properties||{}).forEach(k=> headers.add(k)));
+      const rows = feats.map((f,i)=>({ __id: i+1, ...f.properties }));
+      return { name: LY.name||'Layer', headers: Array.from(headers), rows };
+    });
+    AP.pick.innerHTML = AP.data.map((d,i)=> `<option value="${i}">${d.name}</option>`).join('');
+    AP.cur = 0;
+  }
+  function openAttr(){ if(!AP.data.length){ return; } AP.el.classList.add('active'); renderAttr(); }
+  function closeAttr(){ AP.el.classList.remove('active'); AP.sortKey=null; AP.sortAsc=true; AP.search.value=''; }
+  AP.btn.addEventListener('click', openAttr);
+  AP.close.addEventListener('click', closeAttr);
+  AP.pick.addEventListener('change', ()=>{ AP.cur=Number(AP.pick.value)||0; AP.sortKey=null; AP.sortAsc=true; AP.search.value=''; renderAttr(); });
+  AP.search.addEventListener('input', renderAttr);
+  AP.csv.addEventListener('click', ()=>{
+    const d = AP.data[AP.cur]; if(!d) return;
+    const keys = ['__id', ...d.headers];
+    const rows = filtered(d);
+    const escape = v => `"${String(v??'').replace(/"/g,'""')}"`;
+    const csv = [keys.join(',')].concat(rows.map(r=> keys.map(k=>escape(r[k])).join(','))).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href=url; a.download=`${d.name}-attributes.csv`; a.click();
+    URL.revokeObjectURL(url);
+  });
+  function filtered(d){
+    const q = AP.search.value.trim().toLowerCase();
+    if(!q) return d.rows;
+    return d.rows.filter(r=> d.headers.some(h=> String(r[h]??'').toLowerCase().includes(q)));
+  }
+  function renderAttr(){
+    const d = AP.data[AP.cur]; if(!d){ AP.table.innerHTML=''; return; }
+    let rows = filtered(d);
+    if(AP.sortKey){
+      rows = rows.slice().sort((a,b)=>{
+        const A=a[AP.sortKey], B=b[AP.sortKey];
+        if(A==null && B==null) return 0;
+        if(A==null) return AP.sortAsc? -1:1;
+        if(B==null) return AP.sortAsc? 1:-1;
+        const na = Number(A), nb = Number(B);
+        if(isFinite(na) && isFinite(nb)) return AP.sortAsc ? na-nb : nb-na;
+        return AP.sortAsc ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+      });
+    }
+    const keys = ['#', ...d.headers];
+    const thead = `<tr>${keys.map(k=>{
+      const key = k === '#' ? '__id' : k;
+      const arrow = (AP.sortKey===key) ? (AP.sortAsc?' ▲':' ▼') : '';
+      return `<th data-key="${key}">${k}${arrow}</th>`;
+    }).join('')}</tr>`;
+    const tbody = rows.map(r=> `<tr>${
+      ['__id', ...d.headers].map(k=>{
+        const v = r[k];
+        const cls = typeof v === 'number' ? 'num' : '';
+        return `<td class="${cls}">${v==null?'':v}</td>`;
+      }).join('')
+    }</tr>`).join('');
+    AP.table.innerHTML = thead + tbody;
+    AP.table.querySelectorAll('th').forEach(th=>{
+      const key = th.dataset.key;
+      th.onclick = ()=>{
+        if(!key) return;
+        if(AP.sortKey===key){ AP.sortAsc=!AP.sortAsc; } else { AP.sortKey=key; AP.sortAsc=true; }
+        renderAttr();
+      };
+    });
+  }
+
+  // Γέμισε δεδομένα για τον πίνακα attributes
+  buildAttrData(state);
+})();
+</script>
+</body>
+</html>

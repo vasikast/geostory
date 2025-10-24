@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="el" data-theme="auto">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>GeoVisual Stories — Editor</title>
+
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+
+<!-- (Προαιρετικά) GeoPackage reader για browser -->
+<script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
+
+<style>
+  /* THEME VARIABLES */
+  :root{
+    --bg:#f7f8fc; --panel:#ffffff; --card:#ffffff; --text:#0b1020;
+    --muted:#5a678a; --line:#e6e8f2; --acc:#3b82f6; --acc2:#10b981;
+    --chip:#eef2ff; --chip-border:#dbe5ff;
+  }
+  :root[data-theme="dark"]{
+    --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
+    --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
+    --chip:#12215c; --chip-border:#2b3c6a;
+  }
+  @media (prefers-color-scheme: dark){
+    :root[data-theme="auto"]{
+      --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
+      --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
+      --chip:#12215c; --chip-border:#2b3c6a;
+    }
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,Segoe UI,Roboto,Arial}
+  a{color:var(--acc)}
+  .wrap{display:grid;grid-template-columns:380px 1fr;grid-template-rows:auto 1fr;gap:12px;min-height:100vh;padding:12px}
+  header{grid-column:1/-1;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px 14px;display:flex;align-items:center;gap:10px}
+  .brand{display:flex;align-items:center;gap:10px}
+  .logo{width:28px;height:28px;border-radius:8px;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 0 0 1px #0002}
+  h1{font-size:18px;margin:0}
+  .actions{margin-left:auto;display:flex;gap:8px}
+  .btn{background:#1a2448;border:1px solid #2b3c6a;color:#fff;padding:9px 12px;border-radius:12px;font-weight:600;cursor:pointer}
+  .btn:hover{filter:brightness(1.05)}
+  .btn.primary{background:var(--acc);border-color:#4d88db;color:#081226}
+  .sidebar{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+  .card h3{margin:0 0 8px 0;font-size:14px;color:var(--text)}
+  label{font-size:13px;color:var(--text);display:block;margin:8px 0 6px}
+  input[type="text"], textarea, select, input[type="number"], input[type="color"], input[type="search"]{
+    width:100%;padding:10px;border-radius:12px;border:1px solid var(--line);background:var(--panel);color:var(--text);font-size:14px
+  }
+  textarea{min-height:80px;resize:vertical}
+  .muted{color:var(--muted);font-size:12px}
+  .dropzone{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);background:color-mix(in oklab, var(--panel) 90%, transparent)}
+  .dropzone.dragover{border-color:var(--acc);color:var(--text);background:color-mix(in oklab, var(--panel) 70%, var(--acc) 10%)}
+  .layers{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto}
+  .layer{display:flex;justify-content:space-between;align-items:center;gap:8px;background:color-mix(in oklab, var(--panel) 85%, transparent);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
+  .layer .meta{display:flex;flex-direction:column}
+  .layer .meta small{color:var(--muted)}
+  .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
+  #map{height:100%;min-height:70vh;background:#0a0f1e}
+
+  /* Leaflet controls readable on both themes */
+  .leaflet-control-attribution,
+  .leaflet-control-scale-line,
+  .leaflet-bar a, .leaflet-bar a:hover{
+    background: color-mix(in oklab, var(--panel) 85%, transparent);
+    color: var(--muted);
+    border-color: var(--line);
+  }
+  .leaflet-bar a{ color: var(--text); }
+
+  /* Style panel */
+  .style-panel{display:none;position:fixed;right:16px;top:16px;width:360px;max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:5000}
+  .style-panel.active{display:block}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+  .legend .item{display:flex;align-items:center;gap:6px;background:color-mix(in oklab, var(--panel) 85%, transparent);border:1px solid var(--line);border-radius:10px;padding:6px 8px;font-size:12px}
+  .badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--line)}
+  footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
+  @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
+
+  /* Attribute table panel */
+  .table-panel{display:none;position:fixed;left:16px;right:16px;bottom:16px;max-height:50vh;
+    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;
+    box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:6000}
+  .table-panel.active{display:block}
+  .table-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .table-head .left{display:flex;gap:8px;align-items:center}
+  .table{width:100%;border-collapse:separate;border-spacing:0}
+  .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap}
+  .table th{position:sticky;top:0;background:color-mix(in oklab,var(--panel) 90%,transparent);cursor:pointer}
+  .table .num{font-variant-numeric:tabular-nums}
+  .table-controls{display:flex;gap:8px;align-items:center}
+  .badge2{border:1px solid var(--line);background:color-mix(in oklab,var(--panel) 85%,transparent);padding:4px 8px;border-radius:10px;font-size:12px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
+      <div class="actions">
+        <button id="themeToggle" class="btn" title="Theme">🌗 Theme</button>
+        <button id="btnGenerate" class="btn primary">Generate Link</button>
+      </div>
+    </header>
+
+    <aside class="sidebar">
+      <div class="card">
+        <h3>Στοιχεία Project</h3>
+        <label>Τίτλος</label>
+        <input id="title" type="text" placeholder="π.χ. Flood Risk — Thessaly 2025">
+        <label>Περιγραφή</label>
+        <textarea id="desc" placeholder="Σύντομη περιγραφή/μεθοδολογία..."></textarea>
+      </div>
+
+      <div class="card">
+        <h3>Basemap</h3>
+        <select id="basemap">
+          <option value="osm">OpenStreetMap</option>
+          <option value="sat">Satellite (Esri)</option>
+          <option value="topo">Topographic (OpenTopoMap)</option>
+        </select>
+        <div class="muted" style="margin-top:6px">Διάλεξε υπόβαθρο</div>
+      </div>
+
+      <div class="card">
+        <h3>Αρχεία</h3>
+        <div id="drop" class="dropzone">
+          Σύρε εδώ αρχεία ή <label style="text-decoration:underline;cursor:pointer">
+            επίλεξε<input id="file" type="file" accept=".geojson,.json,.gpkg" multiple style="display:none">
+          </label>
+          <div class="muted" style="margin-top:6px">Υποστήριξη: <b>GeoJSON</b> & <b>GeoPackage</b>*. Για Shapefile ➜ export σε GeoJSON.</div>
+          <div class="muted">* Αν δεν χρειάζεσαι GeoPackage, αφαίρεσε το σχετικό &lt;script&gt; για μικρότερο μέγεθος.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Στρώσεις</h3>
+        <div id="layerList" class="layers"></div>
+        <div class="muted">👁 εμφάνιση/απόκρυψη — 🧾 attributes — 🎨 style — 🗑 διαγραφή — auto fit</div>
+      </div>
+
+      <div class="card">
+        <h3>Περιορισμοί Free</h3>
+        <div class="muted">Έως <strong>3 layers</strong> — link διαρκεί <strong>7 ημέρες</strong>.</div>
+      </div>
+    </aside>
+
+    <section class="canvas"><div id="map"></div></section>
+
+    <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
+  </div>
+
+  <!-- STYLE PANEL (per layer) -->
+  <div id="stylePanel" class="style-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
+      <button id="spClose" class="btn">✕</button>
+    </div>
+    <div class="muted" id="spGeom" style="margin-top:4px"></div>
+
+    <div class="card" style="margin-top:8px">
+      <h3>Renderer</h3>
+      <select id="renderer">
+        <option value="single">Single symbol</option>
+        <option value="unique">Unique values (categorical)</option>
+        <option value="graduated">Graduated (quantiles)</option>
+      </select>
+    </div>
+
+    <div class="card" id="singleBlock">
+      <h3>Single symbol</h3>
+      <div class="row">
+        <div>
+          <label>Fill color</label>
+          <input type="color" id="fillColor" value="#4361ee">
+        </div>
+        <div>
+          <label>Stroke color</label>
+          <input type="color" id="strokeColor" value="#4cc9f0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Stroke width (px)</label>
+          <input type="number" id="strokeWidth" min="0" max="12" value="2">
+        </div>
+        <div>
+          <label>Opacity</label>
+          <input type="number" id="opacity" min="0" max="1" step="0.05" value="0.75">
+        </div>
+      </div>
+      <div id="pointOpts" class="row" style="margin-top:8px">
+        <div>
+          <label>Point size (px)</label>
+          <input type="number" id="pointSize" min="4" max="32" value="10">
+        </div>
+        <div>
+          <label>Point shape</label>
+          <select id="pointShape">
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="fieldBlock">
+      <h3>Field / Palette</h3>
+      <label>Attribute field</label>
+      <select id="fieldSelect"></select>
+
+      <div id="paletteBlock" style="margin-top:8px">
+        <label>Color palette</label>
+        <select id="paletteSelect">
+          <option value="category10">Category10</option>
+          <option value="set3">Set3</option>
+          <option value="pastel">Pastel</option>
+          <option value="viridis">Viridis</option>
+          <option value="magma">Magma</option>
+          <option value="plasma">Plasma</option>
+          <option value="blues">Blues</option>
+          <option value="reds">Reds</option>
+          <option value="greens">Greens</option>
+        </select>
+      </div>
+
+      <div id="classesBlock" style="margin-top:8px">
+        <label>Classes (graduated)</label>
+        <input type="number" id="classCount" min="3" max="9" value="5">
+      </div>
+
+      <div class="legend" id="legendPreview"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="applyStyle" class="btn primary">Apply</button>
+      <button id="resetStyle" class="btn">Reset</button>
+    </div>
+  </div>
+
+  <!-- ATTRIBUTE TABLE PANEL -->
+  <div id="attrPanel" class="table-panel">
+    <div class="table-head">
+      <div class="left">
+        <strong id="attrTitle">Attributes</strong>
+        <span id="attrInfo" class="badge2"></span>
+      </div>
+      <div class="table-controls">
+        <input id="attrSearch" type="search" placeholder="Search…" />
+        <button id="attrCsv" class="btn">⬇️ CSV</button>
+        <button id="attrClose" class="btn">✕</button>
+      </div>
+    </div>
+    <div style="overflow:auto">
+      <table class="table" id="attrTable"></table>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button id="attrPrev" class="btn">◀ Prev</button>
+      <span id="attrPage" class="badge2">1 / 1</span>
+      <button id="attrNext" class="btn">Next ▶</button>
+    </div>
+  </div>
+
+<script>
+  // ---------- THEME TOGGLE ----------
+  (function(){
+    const root = document.documentElement;
+    const KEY = 'geostory-theme';
+    const btn = document.getElementById('themeToggle');
+    const saved = localStorage.getItem(KEY);
+    if(saved){ root.setAttribute('data-theme', saved); }
+    function label(){ btn.title = `Theme: ${root.getAttribute('data-theme') || 'auto'}`; }
+    label();
+    btn.addEventListener('click', ()=>{
+      const cur = root.getAttribute('data-theme') || 'auto';
+      const next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
+      root.setAttribute('data-theme', next);
+      localStorage.setItem(KEY, next);
+      label();
+    });
+  })();
+
+  // ---------- MAP / BASEMAPS ----------
+  const basemaps = {
+    osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
+    sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
+    topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'&copy; OpenTopoMap'})
+  };
+  const map = L.map('map',{zoomControl:true,attributionControl:true});
+  let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+
+  // ---------- STATE ----------
+  let layers = []; // { id, name, gj, leaflet, visible, kind, style, fields }
+  const elBasemap = document.getElementById('basemap');
+  const elDrop = document.getElementById('drop');
+  const elFile = document.getElementById('file');
+  const elList = document.getElementById('layerList');
+
+  // ---------- UTILS ----------
+  function detectKind(gj){
+    let p=false,l=false,a=false;
+    (gj.features||[]).forEach(f=>{
+      const t=f.geometry?.type||'';
+      if(/Point$/.test(t)) p=true; else if(/LineString$/.test(t)) l=true; else if(/Polygon$/.test(t)) a=true;
+    });
+    const c=[p,l,a].filter(Boolean).length;
+    if(c>1) return 'mixed'; if(p) return 'point'; if(l) return 'line'; if(a) return 'poly'; return 'mixed';
+  }
+  function fieldsFrom(gj){
+    const f = (gj.features||[]).find(x=>x.properties && Object.keys(x.properties).length);
+    return f ? Object.keys(f.properties) : [];
+  }
+
+  // Palettes
+  const PALETTES = {
+    category10: ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"],
+    set3: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
+    pastel: ["#aec7e8","#ffbb78","#98df8a","#ff9896","#c5b0d5","#c49c94","#f7b6d2","#c7c7c7","#dbdb8d","#9edae5"],
+    viridis: ["#440154","#46327e","#365c8d","#277f8e","#1fa187","#4ac16d","#9fd744","#fde725"],
+    magma: ["#000004","#1b0c41","#4f0a6d","#88226a","#b63679","#e65164","#fb8761","#fec287","#fbfdbf"],
+    plasma:["#0d0887","#6a00a8","#b12a90","#e16462","#fca636","#f0f921"],
+    blues: ["#eff3ff","#c6dbef","#9ecae1","#6baed6","#3182bd","#08519c"],
+    reds:  ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#de2d26","#a50f15"],
+    greens:["#edf8e9","#c7e9c0","#74c476","#41ab5d","#238b45","#005a32"]
+  };
+  function quantiles(values, k){
+    const v = values.filter(x=>typeof x==='number' && isFinite(x)).sort((a,b)=>a-b);
+    if(!v.length) return [];
+    const qs=[], step=1/k;
+    for(let i=1;i<k;i++){
+      const pos = (v.length-1)*step*i; const lo=Math.floor(pos), hi=Math.ceil(pos);
+      const q=lo===hi? v[lo] : v[lo]*(hi-pos)+v[hi]*(pos-lo);
+      qs.push(q);
+    }
+    return qs;
+  }
+
+  // ---------- RENDERING ----------
+  function defaultStyle(kind){
+    return {
+      renderer: 'single',
+      single: { fill:"#4361ee", stroke:"#4cc9f0", width:2, opacity:0.75, pointSize:10, pointShape:'circle' },
+      unique: { field:null, palette:"category10", legend:[] },
+      graduated: { field:null, classes:5, palette:"viridis", breaks:[], legend:[] },
+      kind
+    };
+  }
+  function buildLeaflet(layer){
+    const st = layer.style;
+    const symb = (feature)=>{
+      if(st.renderer==='single'){
+        const s = st.single;
+        return { color: s.stroke, weight: s.width, fillColor: s.fill, fillOpacity: layer.kind==='line'?0 : s.opacity };
+      }
+      if(st.renderer==='unique' && st.unique.field){
+        const v = feature.properties?.[st.unique.field];
+        const item = st.unique.legend.find(x=> String(x.value)===String(v));
+        const color = item ? item.color : '#999';
+        return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
+      }
+      if(st.renderer==='graduated' && st.graduated.field){
+        const val = Number(feature.properties?.[st.graduated.field]);
+        const br = st.graduated.breaks, cols = st.graduated.legend;
+        let idx = br.findIndex(b => val <= b); if(idx<0) idx = cols.length-1;
+        const color = cols[idx]?.color || '#999';
+        return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
+      }
+      return { color:'#4cc9f0', weight:2, fillColor:'#4361ee', fillOpacity:0.6 };
+    };
+
+    const pointToLayer = (feature, latlng)=>{
+      if(!/Point$/.test(feature.geometry?.type||'')) return null;
+      const s = st.single;
+      const style = symb(feature);
+      const size = st.renderer==='single' ? s.pointSize : 10;
+      const color = style.fillColor || s.fill;
+      if(s.pointShape==='square'){
+        return L.rectangle([
+          [latlng.lat + 0.0001*size, latlng.lng - 0.0001*size],
+          [latlng.lat - 0.0001*size, latlng.lng + 0.0001*size]
+        ], { color, weight: 1, fillColor: color, fillOpacity: 0.8 });
+      }
+      return L.circleMarker(latlng,{ radius:size, color: color, weight:1, fillColor: color, fillOpacity:0.8 });
+    };
+
+    return L.geoJSON(layer.gj, {
+      pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
+      style: (f)=> symb(f),
+      onEachFeature:(f,l)=>{
+        const props=f.properties||{}; const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
+        l.bindPopup(`<div style="font:13px system-ui"><strong>${layer.name}</strong><table>${rows}</table></div>`);
+      }
+    });
+  }
+
+  function renderList(){
+    elList.innerHTML='';
+    if(!layers.length){ elList.innerHTML='<div class="muted">Δεν υπάρχουν layers ακόμη.</div>'; return; }
+    layers.forEach(L=>{
+      const row=document.createElement('div'); row.className='layer';
+      const meta=document.createElement('div'); meta.className='meta';
+      meta.innerHTML = `<div>${L.name}</div><small>${L.kind}</small>`;
+      const controls=document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
+      const eye=document.createElement('button'); eye.className='btn'; eye.textContent=L.visible?'👁':'🚫';
+      eye.onclick=()=>{ L.visible=!L.visible; if(L.visible) L.leaflet.addTo(map); else map.removeLayer(L.leaflet); eye.textContent=L.visible?'👁':'🚫'; };
+      const tbl=document.createElement('button'); tbl.className='btn'; tbl.textContent='🧾'; tbl.title='Attribute table';
+      tbl.onclick=()=> openAttrTable(L.id);
+      const sty=document.createElement('button'); sty.className='btn'; sty.textContent='🎨'; sty.onclick=()=> openStylePanel(L.id);
+      const del=document.createElement('button'); del.className='btn'; del.textContent='🗑';
+      del.onclick=()=>{ map.removeLayer(L.leaflet); layers = layers.filter(x=>x.id!==L.id); renderList(); };
+      controls.appendChild(eye); controls.appendChild(tbl); controls.appendChild(sty); controls.appendChild(del);
+      row.appendChild(meta); row.appendChild(controls);
+      elList.appendChild(row);
+    });
+  }
+
+  function addGeoJSON(name, gj){
+    const id='lyr_'+Math.random().toString(36).slice(2,9);
+    const kind=detectKind(gj);
+    const style = defaultStyle(kind);
+    const leaflet = buildLeaflet({ gj, name, style, kind });
+    leaflet.addTo(map);
+    try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){}
+    layers.push({ id,name,gj,leaflet,visible:true,kind,style,fields:fieldsFrom(gj) });
+    renderList();
+  }
+
+  // ---------- FILE HANDLING ----------
+  document.getElementById('file').addEventListener('change', async e=>{ await handleFiles(e.target.files); e.target.value=''; });
+  ['dragenter','dragover'].forEach(evt=> elDrop.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); elDrop.classList.add('dragover'); }));
+  ['dragleave','drop'].forEach(evt=> elDrop.addEventListener(evt, e=>{ e.preventDefault(); e.stopPropagation(); elDrop.classList.remove('dragover'); }));
+  elDrop.addEventListener('drop', async e=>{ await handleFiles(e.dataTransfer.files); });
+
+  async function handleFiles(list){
+    const files=[...list];
+    for(const f of files){
+      const fn=f.name.toLowerCase();
+      if(fn.endsWith('.geojson') || fn.endsWith('.json')){
+        try{ const gj=JSON.parse(await f.text()); addGeoJSON(f.name.replace(/\.(geo)?json$/i,''), gj); }
+        catch{ alert('Μη έγκυρο GeoJSON: '+f.name); }
+      } else if (fn.endsWith('.gpkg') && window.GeoPackage){
+        try { await loadGPKG(f); } catch{ alert('Πρόβλημα με GeoPackage: '+f.name); }
+      } else {
+        alert('Υποστήριξη: GeoJSON (.geojson) ή GeoPackage (.gpkg)');
+      }
+    }
+  }
+
+  async function loadGPKG(file){
+    const arrayBuffer = await file.arrayBuffer();
+    const gpkg = await window.GeoPackage.open(arrayBuffer);
+    const tables = gpkg.getFeatureTables();
+    if(!tables.length){ alert('Δεν βρέθηκαν feature layers στο GeoPackage.'); return; }
+    for(const t of tables){
+      const gj = gpkg.exportGeoJSON(t); // FeatureCollection
+      addGeoJSON(`${file.name} — ${t}`, gj);
+    }
+  }
+
+  // ---------- BASEMAP ----------
+  elBasemap.addEventListener('change', e=>{
+    map.removeLayer(basemaps[currentBase]); currentBase=e.target.value; basemaps[currentBase].addTo(map);
+  });
+
+  // ---------- STYLE PANEL (per layer) ----------
+  const sp = {
+    el: document.getElementById('stylePanel'),
+    title: document.getElementById('spTitle'),
+    geom: document.getElementById('spGeom'),
+    renderer: document.getElementById('renderer'),
+    single: {
+      fill: document.getElementById('fillColor'),
+      stroke: document.getElementById('strokeColor'),
+      width: document.getElementById('strokeWidth'),
+      opacity: document.getElementById('opacity'),
+      ptSize: document.getElementById('pointSize'),
+      ptShape: document.getElementById('pointShape'),
+    },
+    field: {
+      field: document.getElementById('fieldSelect'),
+      palette: document.getElementById('paletteSelect'),
+      classes: document.getElementById('classCount'),
+      legend: document.getElementById('legendPreview'),
+    },
+    blocks: {
+      single: document.getElementById('singleBlock'),
+      field: document.getElementById('fieldBlock'),
+      classes: document.getElementById('classesBlock'),
+      palette: document.getElementById('paletteBlock'),
+    },
+    apply: document.getElementById('applyStyle'),
+    reset: document.getElementById('resetStyle'),
+    close: document.getElementById('spClose'),
+    layerId: null
+  };
+
+  function openStylePanel(layerId){
+    sp.layerId = layerId;
+    const LYR = layers.find(x=>x.id===layerId);
+    if(!LYR) return;
+    sp.el.classList.add('active');
+    sp.title.textContent = `Style — ${LYR.name}`;
+    sp.geom.textContent = `Geometry: ${LYR.kind}`;
+    sp.renderer.value = LYR.style.renderer;
+    sp.single.fill.value = LYR.style.single.fill;
+    sp.single.stroke.value = LYR.style.single.stroke;
+    sp.single.width.value = LYR.style.single.width;
+    sp.single.opacity.value = LYR.style.single.opacity;
+    sp.single.ptSize.value = LYR.style.single.pointSize;
+    sp.single.ptShape.value = LYR.style.single.pointShape;
+    sp.field.field.innerHTML = '';
+    const fs = LYR.fields;
+    fs.forEach(f=>{
+      const opt=document.createElement('option'); opt.value=f; opt.textContent=f; sp.field.field.appendChild(opt);
+    });
+    if(LYR.style.unique.field) sp.field.field.value = LYR.style.unique.field;
+    if(LYR.style.graduated.field) sp.field.field.value = LYR.style.graduated.field;
+    reflectRendererBlocks(LYR.style.renderer);
+    rebuildLegendPreview(LYR);
+  }
+  function closeStylePanel(){ sp.el.classList.remove('active'); sp.layerId=null; }
+  sp.close.onclick = closeStylePanel;
+
+  function reflectRendererBlocks(mode){
+    sp.blocks.single.style.display = (mode==='single')?'block':'none';
+    sp.blocks.field.style.display = (mode!=='single')?'block':'none';
+    sp.blocks.classes.style.display = (mode==='graduated')?'block':'none';
+  }
+  sp.renderer.addEventListener('change', e=> reflectRendererBlocks(e.target.value));
+
+  function rebuildLegendPreview(LYR){
+    const mode = sp.renderer.value;
+    const legend = sp.field.legend; legend.innerHTML = '';
+    if(mode==='single'){
+      const s=LYR.style.single;
+      const el=document.createElement('div'); el.className='item';
+      el.innerHTML=`<span class="badge" style="background:${s.fill};border-color:${s.fill}"></span> Single`;
+      legend.appendChild(el);
+      return;
+    }
+    const field = sp.field.field.value;
+    const palette = PALETTES[sp.field.palette.value] || PALETTES.category10;
+    const feats = (LYR.gj.features||[]);
+    if(mode==='unique'){
+      const uniq = [...new Set(feats.map(f=> String(f.properties?.[field])))]
+                    .slice(0, palette.length);
+      const items = uniq.map((v,i)=>({value:v,color:palette[i%palette.length]}));
+      legend.dataset.items = JSON.stringify(items);
+      items.forEach(it=>{
+        const el=document.createElement('div'); el.className='item';
+        el.innerHTML=`<span class="badge" style="background:${it.color};border-color:${it.color}"></span> ${it.value}`;
+        legend.appendChild(el);
+      });
+    } else if(mode==='graduated'){
+      const k = Math.max(3, Math.min(9, Number(sp.field.classes.value)||5));
+      const nums = feats.map(f=> Number(f.properties?.[field])).filter(x=>isFinite(x));
+      const br = quantiles(nums, k);
+      const cols = (PALETTES[sp.field.palette.value]||PALETTES.viridis);
+      const grad = Array.from({length:k},(_,i)=> cols[Math.floor(i*(cols.length-1)/(k-1))]);
+      legend.dataset.breaks = JSON.stringify(br);
+      legend.dataset.colors = JSON.stringify(grad);
+      const bounds = [Math.min(...nums), ...br, Math.max(...nums)];
+      for(let i=0;i<k;i++){
+        const label = `${bounds[i].toFixed(2)} – ${bounds[i+1].toFixed(2)}`;
+        const el=document.createElement('div'); el.className='item';
+        el.innerHTML=`<span class="badge" style="background:${grad[i]};border-color:${grad[i]}"></span> ${label}`;
+        legend.appendChild(el);
+      }
+    }
+  }
+  sp.field.field.addEventListener('change', ()=> {
+    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
+    rebuildLegendPreview(LYR);
+  });
+  sp.field.palette.addEventListener('change', ()=> {
+    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
+    rebuildLegendPreview(LYR);
+  });
+  sp.field.classes.addEventListener('input', ()=> {
+    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
+    rebuildLegendPreview(LYR);
+  });
+
+  sp.apply.onclick = ()=>{
+    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
+    const mode = sp.renderer.value;
+    LYR.style.renderer = mode;
+    if(mode==='single'){
+      Object.assign(LYR.style.single, {
+        fill: sp.single.fill.value,
+        stroke: sp.single.stroke.value,
+        width: Number(sp.single.width.value)||2,
+        opacity: Number(sp.single.opacity.value)||0.75,
+        pointSize: Number(sp.single.ptSize.value)||10,
+        pointShape: sp.single.ptShape.value
+      });
+    } else if(mode==='unique'){
+      const field = sp.field.field.value;
+      const items = JSON.parse(sp.field.legend.dataset.items||'[]');
+      LYR.style.unique.field = field;
+      LYR.style.unique.palette = sp.field.palette.value;
+      LYR.style.unique.legend = items;
+    } else if(mode==='graduated'){
+      const field = sp.field.field.value;
+      const breaks = JSON.parse(sp.field.legend.dataset.breaks||'[]');
+      const colors = JSON.parse(sp.field.legend.dataset.colors||'[]').map((c,i)=>({i,color:c}));
+      LYR.style.graduated.field = field;
+      LYR.style.graduated.classes = Number(sp.field.classes.value)||5;
+      LYR.style.graduated.palette = sp.field.palette.value;
+      LYR.style.graduated.breaks = breaks;
+      LYR.style.graduated.legend = colors;
+    }
+    map.removeLayer(LYR.leaflet);
+    LYR.leaflet = buildLeaflet(LYR);
+    if(LYR.visible) LYR.leaflet.addTo(map);
+    closeStylePanel();
+  };
+  sp.reset.onclick = ()=>{
+    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
+    LYR.style = defaultStyle(LYR.kind);
+    map.removeLayer(LYR.leaflet);
+    LYR.leaflet = buildLeaflet(LYR);
+    if(LYR.visible) LYR.leaflet.addTo(map);
+    openStylePanel(LYR.id);
+  };
+
+  // ---------- ATTRIBUTE TABLE (Editor) ----------
+  const AP = {
+    el: document.getElementById('attrPanel'),
+    title: document.getElementById('attrTitle'),
+    info: document.getElementById('attrInfo'),
+    table: document.getElementById('attrTable'),
+    search: document.getElementById('attrSearch'),
+    csv: document.getElementById('attrCsv'),
+    close: document.getElementById('attrClose'),
+    prev: document.getElementById('attrPrev'),
+    next: document.getElementById('attrNext'),
+    pageBadge: document.getElementById('attrPage'),
+    layerId: null,
+    rows: [],
+    headers: [],
+    page: 1,
+    perPage: 50,
+    sortKey: null,
+    sortAsc: true,
+  };
+
+  function openAttrTable(layerId){
+    const LYR = layers.find(x=>x.id===layerId);
+    if(!LYR){ return; }
+    AP.layerId = layerId;
+    const feats = (LYR.gj.features||[]);
+    const headers = new Set();
+    feats.forEach(f=> Object.keys(f.properties||{}).forEach(k=>headers.add(k)));
+    AP.headers = Array.from(headers);
+    AP.rows = feats.map((f,i)=>({ __id: i+1, ...f.properties }));
+    AP.page = 1; AP.sortKey=null; AP.sortAsc=true;
+    AP.title.textContent = `Attributes — ${LYR.name}`;
+    AP.info.textContent = `${AP.rows.length} features • ${AP.headers.length} fields`;
+    AP.search.value = '';
+    AP.el.classList.add('active');
+    renderAttrTable();
+  }
+  function closeAttrTable(){ AP.el.classList.remove('active'); AP.layerId=null; }
+  AP.close.addEventListener('click', closeAttrTable);
+  AP.search.addEventListener('input', ()=>{ AP.page=1; renderAttrTable(); });
+  AP.prev.addEventListener('click', ()=>{ if(AP.page>1){ AP.page--; renderAttrTable(); } });
+  AP.next.addEventListener('click', ()=>{ const max=Math.ceil(filteredRows().length/AP.perPage); if(AP.page<max){ AP.page++; renderAttrTable(); } });
+  AP.csv.addEventListener('click', ()=>{
+    const rows = filteredRows();
+    const keys = ['__id', ...AP.headers];
+    const escape = v => `"${String(v??'').replace(/"/g,'""')}"`;
+    const csv = [keys.join(',')].concat(rows.map(r=> keys.map(k=>escape(r[k])).join(','))).join('\r\n');
+    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href=url; a.download='attributes.csv'; a.click();
+    URL.revokeObjectURL(url);
+  });
+  function filteredRows(){
+    const q = AP.search.value.trim().toLowerCase();
+    if(!q) return AP.rows;
+    return AP.rows.filter(r=> AP.headers.some(h=> String(r[h]??'').toLowerCase().includes(q)));
+  }
+  function renderAttrTable(){
+    const rows = filteredRows();
+    // sort
+    if(AP.sortKey){
+      rows.sort((a,b)=>{
+        const A=a[AP.sortKey], B=b[AP.sortKey];
+        if(A==null && B==null) return 0;
+        if(A==null) return AP.sortAsc? -1:1;
+        if(B==null) return AP.sortAsc? 1:-1;
+        const na = Number(A), nb = Number(B);
+        if(isFinite(na) && isFinite(nb)) return AP.sortAsc ? na-nb : nb-na;
+        return AP.sortAsc ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
+      });
+    }
+    const start = (AP.page-1)*AP.perPage;
+    const slice = rows.slice(start, start+AP.perPage);
+    const totalPages = Math.max(1, Math.ceil(rows.length / AP.perPage));
+    AP.pageBadge.textContent = `${AP.page} / ${totalPages}`;
+    // build table
+    const keys = ['#', ...AP.headers];
+    const thead = `<tr>${keys.map(k=>{
+      const key = k === '#' ? '__id' : k;
+      const arrow = (AP.sortKey===key) ? (AP.sortAsc?' ▲':' ▼') : '';
+      return `<th data-key="${key}">${k}${arrow}</th>`;
+    }).join('')}</tr>`;
+    const tbody = slice.map(r=> `<tr>${
+      ['__id', ...AP.headers].map(k=>{
+        const v = r[k];
+        const cls = typeof v === 'number' ? 'num' : '';
+        return `<td class="${cls}">${v==null?'':v}</td>`;
+      }).join('')
+    }</tr>`).join('');
+    AP.table.innerHTML = thead + tbody;
+    // header click sort
+    AP.table.querySelectorAll('th').forEach(th=>{
+      const key = th.dataset.key;
+      th.onclick = ()=>{
+        if(!key) return;
+        if(AP.sortKey===key){ AP.sortAsc=!AP.sortAsc; }
+        else { AP.sortKey=key; AP.sortAsc=true; }
+        renderAttrTable();
+      };
+    });
+  }
+
+  // ---------- GENERATE LINK ----------
+  document.getElementById('btnGenerate').addEventListener('click', async ()=>{
+    const state = {
+      title: document.getElementById('title').value || 'Untitled',
+      description: document.getElementById('desc').value || '',
+      basemap: currentBase,
+      center: map.getCenter(), zoom: map.getZoom(),
+      layers: layers.map(L=>({ name:L.name, gj:L.gj, visible:L.visible, kind:L.kind, style:L.style }))
+    };
+    try{
+      const r = await fetch('/api/stories', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ state, ttlDays: 7 })
+      });
+      const data = await r.json();
+      if(!r.ok) { alert(data.error || 'Σφάλμα δημιουργίας link'); return; }
+      const link = location.origin + data.url;
+      await navigator.clipboard?.writeText(link).catch(()=>{});
+      alert('Το link δημιουργήθηκε και αντιγράφηκε:\n'+link);
+    }catch(e){ alert('Σφάλμα δικτύου'); }
+  });
+</script>
+</body>
+</html>
