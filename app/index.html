@@ -74,7 +74,7 @@
   .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
   #map{position:relative;height:100%;min-height:70vh;background:#0a0f1e}
 
-  /* Leaflet controls readable on both themes */
+  /* Leaflet controls */
   .leaflet-control-attribution,
   .leaflet-control-scale-line,
   .leaflet-bar a, .leaflet-bar a:hover{
@@ -130,17 +130,15 @@
     font-size: 20px; line-height: 1;
     width: 100%; height: 100%;
   }
-  /* Yellow theme vars for both light & dark */
+  /* Yellow palette */
   :root { --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020; }
-  :root[data-theme="dark"] {
-    --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
-  }
+  :root[data-theme="dark"] { --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020; }
 
-  /* Ghost preview animation (direction hint) */
+  /* Ghost preview animation */
   .measure-ghost-line{ stroke-dasharray:6 6; animation: dash 1s linear infinite; }
   @keyframes dash{ to { stroke-dashoffset:-12; } }
 
-  /* Theme toggle inverted look (light↔dark) */
+  /* Theme toggle inverted look */
   #themeToggle { transition: filter .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
   :root[data-theme="light"] #themeToggle{
     background:#0b1020 !important; color:#ffffff !important; border-color:#0b1020 !important;
@@ -149,7 +147,7 @@
     background:#ffffff !important; color:#0b1020 !important; border-color:#ffffff !important;
   }
 
-  /* Inverted Leaflet popups per theme (Identify & measure result) */
+  /* Inverted popups (identify & measure result) */
   :root[data-theme="light"] .leaflet-popup-content-wrapper,
   :root[data-theme="light"] .leaflet-popup-tip { background:#0b1020; color:#ffffff; border-color:#0b1020; }
   :root[data-theme="dark"] .leaflet-popup-content-wrapper,
@@ -177,8 +175,8 @@
     <header>
       <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
       <div class="actions">
-        <button id="themeToggle" class="btn" title="Theme">🌗 Theme</button>
-        <button id="btnGenerate" class="btn primary">Generate Link</button>
+        <button id="themeToggle" class="btn" title="Theme: toggle light/dark">🌗 Theme</button>
+        <button id="btnGenerate" class="btn primary" title="Δημιούργησε δημόσιο link για προβολή">Generate Link</button>
       </div>
     </header>
 
@@ -193,7 +191,7 @@
 
       <div class="card">
         <h3>Basemap</h3>
-        <select id="basemap">
+        <select id="basemap" title="Διάλεξε υπόβαθρο">
           <option value="osm">OpenStreetMap</option>
           <option value="sat">Satellite (Esri)</option>
           <option value="topo">Topographic (OpenTopoMap)</option>
@@ -233,13 +231,13 @@
   <div id="stylePanel" class="style-panel">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
-      <button id="spClose" class="btn">✕</button>
+      <button id="spClose" class="btn" title="Κλείσιμο">✕</button>
     </div>
     <div class="muted" id="spGeom" style="margin-top:4px"></div>
 
     <div class="card" style="margin-top:8px">
       <h3>Renderer</h3>
-      <select id="renderer">
+      <select id="renderer" title="Τύπος συμβολογίας">
         <option value="single">Single symbol</option>
         <option value="unique">Unique values (categorical)</option>
         <option value="graduated">Graduated (quantiles)</option>
@@ -312,8 +310,8 @@
     </div>
 
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="applyStyle" class="btn primary">Apply</button>
-      <button id="resetStyle" class="btn">Reset</button>
+      <button id="applyStyle" class="btn primary" title="Εφαρμογή συμβολογίας">Apply</button>
+      <button id="resetStyle" class="btn" title="Επαναφορά">Reset</button>
     </div>
   </div>
 
@@ -329,7 +327,7 @@
     </div>
     <div class="win-toolbar">
       <input id="attrwin-search" type="search" placeholder="Αναζήτηση…" />
-      <button id="attrwin-csv" class="btn btn-sm">Export CSV</button>
+      <button id="attrwin-csv" class="btn btn-sm" title="Export CSV">Export CSV</button>
       <span id="attrwin-count" class="muted"></span>
     </div>
     <div class="win-body">
@@ -341,20 +339,18 @@
     <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
   </div>
 
-  <!-- Import του shared attr window και “δέσιμο” events -->
+  <!-- Import shared attr window -->
   <script type="module">
     import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
-
     const winEl = document.getElementById('attrwin');
     ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
       .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
-
     window.openAttrWindow = openAttrWindow;
     window.setAttrData = setAttrData;
   </script>
 
 <script>
-  // ---------- THEME TOGGLE (one-click, light <-> dark) ----------
+  // ---------- THEME TOGGLE (one-click) ----------
   (function(){
     const root = document.documentElement;
     const KEY  = 'geostory-theme';
@@ -613,7 +609,7 @@
     map.removeLayer(basemaps[currentBase]); currentBase=e.target.value; basemaps[currentBase].addTo(map);
   });
 
-  // ---------- STYLE PANEL (per layer) ----------
+  // ---------- STYLE PANEL ----------
   const sp = {
     el: document.getElementById('stylePanel'),
     title: document.getElementById('spTitle'),
@@ -774,7 +770,7 @@
     openStylePanel(LYR.id);
   };
 
-  // ---------- ATTRIBUTE TABLE (Editor) ----------
+  // ---------- ATTRIBUTE TABLE ----------
   const __fidToFeature = new Map();
 
   function zoomToFeature(feat){
@@ -817,6 +813,7 @@
       const btn = document.createElement('button');
       btn.className = 'btn btn-sm';
       btn.textContent = '🔎 Zoom';
+      btn.title = 'Zoom to feature';
       btn.addEventListener('click', (e)=>{ e.stopPropagation(); if(fid) zoomToFeature(__fidToFeature.get(fid)); });
       td.appendChild(btn);
       tr.appendChild(td);
@@ -845,12 +842,12 @@
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null;      // 'distance' | 'area' | null
   let pts = [];                // [[lng,lat], ...]
-  let sketch = null;           // πρόχειρο σχέδιο όσο μετράμε (interactive:false)
+  let sketch = null;           // πρόχειρο σχέδιο
   let ghost  = null;           // live preview
-  let dblCaptureFn = null;     // capture listener για να “τρώνε” τα dblclicks
-  let finishing = false;       // για να μην τρέχουν διπλά οι χειριστές στο finish
+  let finishing = false;       // guard για finish
+  let dblCaptureFn = null;     // capture dblclick
 
-  // HUD δίπλα στον κέρσορα (live μήκος/εμβαδό)
+  // HUD (δίπλα στον κέρσορα)
   const mapEl = document.getElementById('map');
   const hud = document.createElement('div');
   hud.id = 'measureHud';
@@ -874,7 +871,7 @@
   }
   function sameLL(a,b){ return a && b && Math.abs(a[0]-b[0])<1e-9 && Math.abs(a[1]-b[1])<1e-9; }
 
-  // live preview που ακολουθεί τον κέρσορα
+  // live preview (ghost)
   function updateGhost(latlng){
     if(!measureMode || pts.length===0) return;
     clearGhost();
@@ -899,7 +896,7 @@
     ghost.addTo(measureLayer);
   }
 
-  // τρέχον σχέδιο όσο κλικάρουμε
+  // sketch όσο κλικάρουμε
   function updateSketch(){
     if(!pts.length) return;
     clearSketch();
@@ -912,10 +909,10 @@
   }
 
   function addDblCapture(){
-    // Τρώμε ΟΛΑ τα dblclicks στο capture phase ώστε να μην ζουμάρει ποτέ ο χάρτης
     if(dblCaptureFn) return;
     dblCaptureFn = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); };
-    mapEl.addEventListener('dblclick', dblCaptureFn, true); // capture = true
+    // Capture phase, για να μην περάσει τίποτα στον Leaflet
+    mapEl.addEventListener('dblclick', dblCaptureFn, true);
   }
   function removeDblCapture(){
     if(!dblCaptureFn) return;
@@ -929,14 +926,13 @@
     pts = [];
     setCursor(true);
     finishing = false;
-    map.doubleClickZoom.disable(); // 🔒 μην κάνει zoom το dblclick όσο μετράμε
+    map.doubleClickZoom.disable(); // Μη ζουμάρει όσο μετράμε
     addDblCapture();
     hud.style.display='block';
     map.on('mousemove', onMouseMove);
   }
 
   function bindResultHover(layer, latlng, content){
-    // όταν κλείνεις το popup, αν ξαναπεράσεις από πάνω να ξανανοίγει
     layer._measure = { latlng, content };
     layer.on('mouseover', ()=>{
       const m = layer._measure;
@@ -949,12 +945,11 @@
   }
 
   function finishMeasure(){
-    if(finishing) return; // προφύλαξη
+    if(finishing) return; // guard
     finishing = true;
 
     if(!pts.length){ cancelMeasure(); finishing=false; return; }
 
-    // Φτιάχνουμε τελικό, interactive layer (για hover popup)
     let resultLayer = null;
     let latlngForPopup = null;
     let html = '';
@@ -975,17 +970,14 @@
       resultLayer = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:true});
     }
 
-    // Καθάρισε πρόχειρα layers και πρόσθεσε το τελικό
     clearGhost();
     clearSketch();
     if(resultLayer){
       resultLayer.addTo(measureLayer);
-      // Άνοιξε popup τώρα…
       L.popup({ closeButton:true })
         .setLatLng(latlngForPopup)
         .setContent(html)
         .openOn(map);
-      // …και ξανάνοιγέ το αυτόματα σε mouseover
       bindResultHover(resultLayer, latlngForPopup, html);
     }
 
@@ -994,7 +986,7 @@
     measureMode = null;
     pts = [];
 
-    // ⚠️ Μικρή καθυστέρηση πριν το re-enable, για να μην “πιάσει” το ίδιο dblclick
+    // μικρή καθυστέρηση για να μην “πιάσει” το ίδιο dblclick
     setTimeout(()=> {
       map.doubleClickZoom.enable();
       removeDblCapture();
@@ -1030,15 +1022,15 @@
     updateGhost(e.latlng);
   }
 
-  // -- Clicks (μονό κλικ: προσθήκη κορυφής)
+  // ΜΟΝΟ ΚΛΙΚ: προσθήκη κορυφής (αγνοεί το 2ο κλικ του dblclick)
   map.on('click', (e)=>{
     if(!measureMode) return;
-    if(e.originalEvent && e.originalEvent.detail > 1) return; // αγνόησε το 2ο κλικ του dblclick
+    if(e.originalEvent && e.originalEvent.detail > 1) return;
     const ll = e.latlng; pts.push([ll.lng, ll.lat]);
     updateSketch();
   });
 
-  // -- Double click: πρόσθεσε τελικό σημείο (αν λείπει) και τελείωσε
+  // ΔΙΠΛΟ ΚΛΙΚ: πρόσθεσε τελικό σημείο (αν λείπει) + ΤΕΡΜΑΤΙΣΜΟΣ
   map.on('dblclick', (e)=>{
     if(!measureMode) return;
     L.DomEvent.preventDefault(e);
@@ -1051,7 +1043,7 @@
     finishMeasure();
   });
 
-  // Επιπλέον ασφάλεια: DOM-capture για dblclick (να ΜΗ ζουμάρει)
+  // Επιπλέον DOM capture: τρώμε το dblclick οπωσδήποτε
   mapEl.addEventListener('dblclick', (ev)=>{
     if(!measureMode) return;
     ev.preventDefault();
@@ -1063,7 +1055,7 @@
     if(e.key==='Escape') cancelMeasure();
   });
 
-  // Custom control buttons (top-right) — icon-only, yellow
+  // Custom control buttons (top-right) — icon-only, yellow + tooltips
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
@@ -1071,14 +1063,14 @@
       const mkBtn = (label, iconTxt) => {
         const a = L.DomUtil.create('a','',container);
         a.href='#';
-        a.innerHTML = `<span class="ico">${iconTxt}</span>`;
+        a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
         a.title = label;
         a.setAttribute('aria-label', label);
         return a;
       };
-      const btnDist  = mkBtn('Measure line','📏');
-      const btnArea  = mkBtn('Measure area','▱');
-      const btnClear = mkBtn('Clear measurements','🧹');
+      const btnDist  = mkBtn('Measure line (click to add points • double click to finish • Esc to cancel)','📏');
+      const btnArea  = mkBtn('Measure area (click to add vertices • double click to finish • Esc to cancel)','▱');
+      const btnClear = mkBtn('Clear all measurements','🧹');
 
       function setActive(b){
         [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
