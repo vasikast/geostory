@@ -69,8 +69,8 @@
   @media (max-width: 900px){ .wrap{grid-template-columns:1fr} }
 </style>
 
-<!-- Attribute Window styles (με cache-busting για να φορτώνει η νέα έκδοση) -->
-<link rel="stylesheet" href="/public/css/attrwin.css?v=2" />
+<!-- Attribute Window styles (cache-bust) -->
+<link rel="stylesheet" href="/public/css/attrwin.css?v=3" />
 </head>
 <body>
   <header>
@@ -92,7 +92,7 @@
     <section class="canvas"><div id="map"></div></section>
   </div>
 
-  <!-- Attribute Table Window -->
+  <!-- Attribute Table Window (draggable/resizable/min/max/close) -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
@@ -117,11 +117,11 @@
   </div>
 
   <!-- Attribute Window logic (cache-bust) -->
-  <script type="module" src="/public/js/attrwin.js?v=2"></script>
+  <script type="module" src="/public/js/attrwin.js?v=3"></script>
 
   <!-- Viewer logic -->
   <script type="module">
-    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=2';
+    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
 
     // THEME TOGGLE
     (function(){
