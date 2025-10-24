@@ -1072,7 +1072,7 @@
                 'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\n' +
                 (data.error ? `Λεπτομέρεια: ${data.error}` : text));
         }else if(r.status === 400){
-          alert('Σφάλμα 400 (Bad Request): ' + (data.error ή text));
+          alert('Σφάλμα 400 (Bad Request): ' + (data.error || text));
         }else{
           alert(`Σφάλμα ${r.status}: ` + (data.error || text || 'Άγνωστο σφάλμα'));
         }
