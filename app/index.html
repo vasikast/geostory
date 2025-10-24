@@ -94,11 +94,20 @@
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
 
-  /* Measure buttons look */
-  .leaflet-control-measure .btn{
-    padding:6px 10px;
-    border-radius:10px;
-    font-weight:600;
+  /* Measure controls: bigger, nicer */
+  .leaflet-control-measure a{
+    padding:8px 12px !important;
+    font-size:20px !important;
+    line-height:1;
+  }
+
+  /* Ghost preview animation (direction hint) */
+  .measure-ghost-line{
+    stroke-dasharray:6 6;
+    animation: dash 1s linear infinite;
+  }
+  @keyframes dash{
+    to { stroke-dashoffset:-12; }
   }
 
   /* Theme toggle inverted look (light↔dark) */
@@ -735,10 +744,20 @@
   // ---------- MEASURE TOOLS (top-right) ----------
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null; // 'distance' | 'area' | null
-  let sketch = null;      // Leaflet layer (polyline/polygon)
+  let sketch = null;      // final Leaflet layer (polyline/polygon)
+  let ghost = null;       // live preview following cursor
   let pts = [];           // [[lng,lat], ...]
   const readout = L.control({position:'bottomright'});
-  readout.onAdd = function(){ const div=L.DomUtil.create('div','leaflet-bar'); div.style.padding='6px 8px'; div.style.font='13px system-ui'; div.style.background='color-mix(in oklab, var(--panel) 85%, transparent)'; div.style.border='1px solid var(--line)'; div.style.borderRadius='8px'; div.style.display='none'; this._el=div; return div; };
+  readout.onAdd = function(){
+    const div=L.DomUtil.create('div','leaflet-bar');
+    div.style.padding='6px 8px';
+    div.style.font='13px system-ui';
+    div.style.background='color-mix(in oklab, var(--panel) 85%, transparent)';
+    div.style.border='1px solid var(--line)';
+    div.style.borderRadius='8px';
+    div.style.display='none';
+    this._el=div; return div;
+  };
   readout.addTo(map);
 
   function setCursor(active){
@@ -753,6 +772,36 @@
     if(m2 >= 1e4) return `${(m2/1e4).toFixed(2)} ha`;
     return `${m2.toFixed(0)} m²`;
   }
+
+  function clearGhost(){
+    if(ghost){ measureLayer.removeLayer(ghost); ghost=null; }
+  }
+  function updateGhost(latlng){
+    if(!measureMode || pts.length===0) return;
+    clearGhost();
+    const path = [...pts.map(([lng,lat])=>[lat,lng]), [latlng.lat, latlng.lng]];
+    if(measureMode==='distance'){
+      ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line' });
+    }else{
+      // area ghost as open polygon-ish (visual), fill low opacity
+      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line' });
+    }
+    ghost.addTo(measureLayer);
+
+    // live readout with cursor included
+    if(measureMode==='distance'){
+      const line = turf.lineString([...pts, [latlng.lng, latlng.lat]]);
+      const lenKm = turf.length(line, {units:'kilometers'});
+      readout._el.textContent = `Length: ${formatLen(lenKm)}  •  (Double-click to finish, Esc to cancel)`;
+      readout._el.style.display='block';
+    }else if(measureMode==='area' && pts.length>=2){
+      const poly = turf.polygon([[...pts, [latlng.lng, latlng.lat], pts[0]]]);
+      const a = turf.area(poly);
+      readout._el.textContent = `Area: ${formatArea(a)}  •  (Double-click to finish, Esc to cancel)`;
+      readout._el.style.display='block';
+    }
+  }
+
   function updateSketch(){
     if(!pts.length) return;
     if(sketch) measureLayer.removeLayer(sketch);
@@ -763,7 +812,6 @@
       readout._el.textContent = `Length: ${formatLen(lenKm)}`;
       readout._el.style.display='block';
     }else if(measureMode==='area'){
-      if(pts.length<2){ readout._el.style.display='none'; }
       sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1});
       if(pts.length>=3){
         const poly = turf.polygon([[...pts, pts[0]]]);
@@ -781,22 +829,35 @@
     map.doubleClickZoom.disable();
     readout._el.textContent = (mode==='distance' ? 'Click to add points • Double-click to finish • Esc to cancel' : 'Click to add vertices • Double-click to finish • Esc to cancel');
     readout._el.style.display='block';
+    map.on('mousemove', onMouseMove);
   }
   function finishMeasure(){
     setCursor(false);
     measureMode = null;
     pts = [];
+    clearGhost();
     sketch = null;
     map.doubleClickZoom.enable();
     readout._el.style.display='none';
+    map.off('mousemove', onMouseMove);
   }
   function cancelMeasure(){
     pts = [];
+    clearGhost();
     if(sketch){ measureLayer.removeLayer(sketch); sketch=null; }
     setCursor(false);
     measureMode = null;
     map.doubleClickZoom.enable();
     readout._el.style.display='none';
+    map.off('mousemove', onMouseMove);
+  }
+  function clearAllMeasurements(){
+    cancelMeasure();
+    measureLayer.clearLayers();
+  }
+  function onMouseMove(e){
+    if(!measureMode) return;
+    updateGhost(e.latlng);
   }
 
   map.on('click', (e)=>{
@@ -808,8 +869,7 @@
     if(!measureMode) return;
     L.DomEvent.stop(e);
     updateSketch(); // final update
-    // αφήνουμε το τελικό sketch πάνω στο χάρτη και βγαίνουμε από measure
-    finishMeasure();
+    finishMeasure(); // keep sketch on map, but exit mode
   });
   L.DomEvent.on(document, 'keydown', (e)=>{
     if(e.key==='Escape') cancelMeasure();
@@ -820,12 +880,23 @@
     options: { position: 'topright' },
     onAdd: function(){
       const container = L.DomUtil.create('div','leaflet-control leaflet-control-measure leaflet-bar');
-      const btnDist = L.DomUtil.create('a','',container); btnDist.href='#'; btnDist.title='Measure distance'; btnDist.innerHTML='📏';
-      const btnArea = L.DomUtil.create('a','',container); btnArea.href='#'; btnArea.title='Measure area'; btnArea.innerHTML='▱';
-      btnDist.style.padding='6px 10px'; btnArea.style.padding='6px 10px';
+
+      const mkBtn = (title, html) => {
+        const a = L.DomUtil.create('a','',container);
+        a.href='#'; a.title=title; a.innerHTML=html;
+        a.style.padding='8px 12px'; a.style.fontSize='20px';
+        return a;
+      };
+
+      const btnDist  = mkBtn('Measure distance','📏');
+      const btnArea  = mkBtn('Measure area','▱');
+      const btnClear = mkBtn('Clear measurements','🧹');
+
       btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('distance'); });
       btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('area'); });
-      // μην περνάνε events στον χάρτη όταν πατάς στα κουμπιά
+      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); clearAllMeasurements(); });
+
+      // μην περνάνε events στον χάρτη όταν πατάς τα κουμπιά
       L.DomEvent.disableClickPropagation(container);
       return container;
     }
