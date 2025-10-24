@@ -101,6 +101,15 @@
   .table-controls{display:flex;gap:8px;align-items:center}
   .badge2{border:1px solid var(--line);background:color-mix(in oklab,var(--panel) 85%,transparent);padding:4px 8px;border-radius:10px;font-size:12px}
 </style>
+
+<!-- Floating Attribute Window styles (reuse με viewer) -->
+<link rel="stylesheet" href="/public/css/attrwin.css?v=3">
+
+<!-- (Προαιρετικό) Αν θες να κρύψεις το παλιό docked attribute panel του editor -->
+<style>
+  /* Αν έχεις docked panel στο κάτω μέρος και δε το θες πλέον */
+  /* .table-panel { display: none !important; } */
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -108,6 +117,8 @@
       <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
       <div class="actions">
         <button id="themeToggle" class="btn" title="Theme">🌗 Theme</button>
+        <!-- ΝΕΟ: trigger για το floating Attribute Window -->
+        <button id="openTable" class="btn" title="Attribute Table">🧾 Attributes</button>
         <button id="btnGenerate" class="btn primary">Generate Link</button>
       </div>
     </header>
@@ -247,7 +258,7 @@
     </div>
   </div>
 
-  <!-- ATTRIBUTE TABLE PANEL -->
+  <!-- ATTRIBUTE TABLE PANEL (παλιό docked) -->
   <div id="attrPanel" class="table-panel">
     <div class="table-head">
       <div class="left">
@@ -757,6 +768,63 @@
       alert('Το link δημιουργήθηκε και αντιγράφηκε:\n'+link);
     }catch(e){ alert('Σφάλμα δικτύου'); }
   });
+</script>
+
+<!-- Floating Attribute Table Window (draggable/resizable/min/max/close) -->
+<div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
+  <div class="win-header" id="attrwin-header">
+    <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
+    <div class="win-actions">
+      <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize">—</button>
+      <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
+      <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
+    </div>
+  </div>
+  <div class="win-toolbar">
+    <input id="attrwin-search" type="search" placeholder="Αναζήτηση…" />
+    <button id="attrwin-csv" class="btn btn-sm">Export CSV</button>
+    <span id="attrwin-count" class="muted"></span>
+  </div>
+  <div class="win-body">
+    <table id="attrwin-table">
+      <thead></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
+</div>
+
+<!-- Attribute Window logic -->
+<script type="module" src="/public/js/attrwin.js?v=3"></script>
+
+<!-- Hook του κουμπιού του editor για να ανοίγει το floating window -->
+<script type="module">
+  import { openAttrWindow } from '/public/js/attrwin.js?v=3';
+
+  // Επιλογή layer από τον editor: ενεργό > πρώτο ορατό > πρώτο διαθέσιμο
+  function pickEditorLayer() {
+    if (!Array.isArray(window.layers) || window.layers.length === 0) return null;
+
+    // if (typeof window.activeLayerIndex === 'number') return window.layers[window.activeLayerIndex];
+
+    const firstVisible = window.layers.find(L => L && L.visible !== false);
+    return firstVisible || window.layers[0];
+  }
+
+  function rowsFromLayer(layer) {
+    const feats = (layer?.gj?.features || []);
+    return feats.map((f, i) => ({ id: f?.id ?? (i+1), ...(f?.properties || {}) }));
+  }
+
+  // Trigger button (στο header)
+  const btn = document.getElementById('openTable');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      const L = pickEditorLayer();
+      if (!L) { alert('Δεν υπάρχει διαθέσιμο layer.'); return; }
+      openAttrWindow(rowsFromLayer(L), { title: `Attributes • ${L.name || 'Layer'}` });
+    });
+  }
 </script>
 </body>
 </html>
