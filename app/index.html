@@ -149,6 +149,94 @@
     <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
   </div>
 
+  <!-- ✅ STYLE PANEL (per layer) -->
+  <div id="stylePanel" class="style-panel">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+      <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
+      <button id="spClose" class="btn">✕</button>
+    </div>
+    <div class="muted" id="spGeom" style="margin-top:4px"></div>
+
+    <div class="card" style="margin-top:8px">
+      <h3>Renderer</h3>
+      <select id="renderer">
+        <option value="single">Single symbol</option>
+        <option value="unique">Unique values (categorical)</option>
+        <option value="graduated">Graduated (quantiles)</option>
+      </select>
+    </div>
+
+    <div class="card" id="singleBlock">
+      <h3>Single symbol</h3>
+      <div class="row">
+        <div>
+          <label>Fill color</label>
+          <input type="color" id="fillColor" value="#4361ee">
+        </div>
+        <div>
+          <label>Stroke color</label>
+          <input type="color" id="strokeColor" value="#4cc9f0">
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label>Stroke width (px)</label>
+          <input type="number" id="strokeWidth" min="0" max="12" value="2">
+        </div>
+        <div>
+          <label>Opacity</label>
+          <input type="number" id="opacity" min="0" max="1" step="0.05" value="0.75">
+        </div>
+      </div>
+      <div id="pointOpts" class="row" style="margin-top:8px">
+        <div>
+          <label>Point size (px)</label>
+          <input type="number" id="pointSize" min="4" max="32" value="10">
+        </div>
+        <div>
+          <label>Point shape</label>
+          <select id="pointShape">
+            <option value="circle">Circle</option>
+            <option value="square">Square</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="fieldBlock">
+      <h3>Field / Palette</h3>
+      <label>Attribute field</label>
+      <select id="fieldSelect"></select>
+
+      <div id="paletteBlock" style="margin-top:8px">
+        <label>Color palette</label>
+        <select id="paletteSelect">
+          <option value="category10">Category10</option>
+          <option value="set3">Set3</option>
+          <option value="pastel">Pastel</option>
+          <option value="viridis">Viridis</option>
+          <option value="magma">Magma</option>
+          <option value="plasma">Plasma</option>
+          <option value="blues">Blues</option>
+          <option value="reds">Reds</option>
+          <option value="greens">Greens</option>
+        </select>
+      </div>
+
+      <div id="classesBlock" style="margin-top:8px">
+        <label>Classes (graduated)</label>
+        <input type="number" id="classCount" min="3" max="9" value="5">
+      </div>
+
+      <div class="legend" id="legendPreview"></div>
+    </div>
+
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button id="applyStyle" class="btn primary">Apply</button>
+      <button id="resetStyle" class="btn">Reset</button>
+    </div>
+  </div>
+
   <!-- ✅ Attribute Table Window (draggable/resizable/min/max/close) -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
@@ -173,11 +261,11 @@
     <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
   </div>
 
-  <!-- ✅ Κάνουμε import το shared attr window module και “δένουμε” τα events -->
+  <!-- ✅ Import του shared attr window και “δέσιμο” events -->
   <script type="module">
     import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
 
-    // Να μη φεύγουν events προς τον χάρτη όταν δουλεύεις στο παράθυρο
+    // Μην περνάνε events προς τον χάρτη όταν δουλεύεις στο παράθυρο
     const winEl = document.getElementById('attrwin');
     ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
       .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
@@ -210,7 +298,7 @@
   const basemaps = {
     osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
-    topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'&copy; OpenTopoMap'})
+    topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
   const map = L.map('map',{zoomControl:true,attributionControl:true});
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
@@ -550,36 +638,61 @@
   };
 
   // ---------- ATTRIBUTE TABLE (Editor) ----------
-  // ✨ Αντικατάσταση του παλιού panel: χρησιμοποιούμε το shared attr window.
   function openAttrTable(layerId){
     const LYR = layers.find(x=>x.id===layerId);
     if(!LYR) return;
     const feats = (LYR.gj.features||[]);
     const rows = feats.map((f,i)=>({ id: f.id ?? (i+1), ...f.properties }));
-    // ανοίγει το κοινό attr window (ορίζεται στο module παραπάνω)
     window.openAttrWindow(rows, { title: `Attributes • ${LYR.name}` });
   }
 
   // ---------- GENERATE LINK ----------
   document.getElementById('btnGenerate').addEventListener('click', async ()=>{
+    // Προφανείς έλεγχοι πριν στείλουμε:
+    if(layers.length === 0){
+      alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.'); return;
+    }
+    if(layers.length > 3){
+      alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.'); return;
+    }
     const state = {
       title: document.getElementById('title').value || 'Untitled',
       description: document.getElementById('desc').value || '',
       basemap: currentBase,
-      center: map.getCenter(), zoom: map.getZoom(),
+      center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
+      zoom: map.getZoom(),
       layers: layers.map(L=>({ name:L.name, gj:L.gj, visible:L.visible, kind:L.kind, style:L.style }))
     };
     try{
       const r = await fetch('/api/stories', {
-        method:'POST', headers:{'Content-Type':'application/json'},
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
         body: JSON.stringify({ state, ttlDays: 7 })
       });
-      const data = await r.json();
-      if(!r.ok) { alert(data.error || 'Σφάλμα δημιουργίας link'); return; }
-      const link = location.origin + data.url;
-      await navigator.clipboard?.writeText(link).catch(()=>{});
+      const text = await r.text();
+      let data = {};
+      try{ data = JSON.parse(text); }catch{ /* text wasn't JSON */ }
+
+      if(!r.ok){
+        // Δώσε σαφές μήνυμα ανά περίπτωση
+        if(r.status === 403){
+          alert('403: Editor/API είναι κλειδωμένο για τοπική χρήση.\n' +
+                'Αν είσαι σε Render και θες δημόσια πρόσβαση, βάλε ALLOW_EDITOR_NETWORK=1 στα Environment Variables.\n\n' +
+                (data.error ? `Λεπτομέρεια: ${data.error}` : text));
+        }else if(r.status === 400){
+          alert('Σφάλμα 400 (Bad Request): ' + (data.error || text));
+        }else{
+          alert(`Σφάλμα ${r.status}: ` + (data.error || text || 'Άγνωστο σφάλμα'));
+        }
+        return;
+      }
+
+      const link = (location.origin + (data.url || `/s/${data.id}`));
+      try{ await navigator.clipboard?.writeText(link); }catch{}
       alert('Το link δημιουργήθηκε και αντιγράφηκε:\n'+link);
-    }catch(e){ alert('Σφάλμα δικτύου'); }
+    }catch(e){
+      alert('Σφάλμα δικτύου: ' + (e?.message || e));
+    }
   });
 </script>
 </body>
