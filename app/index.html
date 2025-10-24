@@ -55,6 +55,7 @@
   .btn{background:#1a2448;border:1px solid #2b3c6a;color:#fff;padding:9px 12px;border-radius:12px;font-weight:600;cursor:pointer}
   .btn:hover{filter:brightness(1.05)}
   .btn.primary{background:var(--acc);border-color:#4d88db;color:#081226}
+  .btn.btn-sm{padding:6px 10px;font-size:12px}
   .sidebar{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:12px;overflow:auto}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
   .card h3{margin:0 0 8px 0;font-size:14px;color:var(--text)}
@@ -122,6 +123,25 @@
     color:#0b1020 !important;
     border-color:#ffffff !important;
   }
+
+  /* Inverted Leaflet popups per theme (για Identify) */
+  :root[data-theme="light"] .leaflet-popup-content-wrapper,
+  :root[data-theme="light"] .leaflet-popup-tip {
+    background: #0b1020;
+    color: #ffffff;
+    border-color: #0b1020;
+  }
+  :root[data-theme="dark"] .leaflet-popup-content-wrapper,
+  :root[data-theme="dark"] .leaflet-popup-tip {
+    background: #ffffff;
+    color: #0b1020;
+    border-color: #ffffff;
+  }
+  .leaflet-popup-content { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+  .leaflet-popup-content table { border-collapse:collapse; }
+  .leaflet-popup-content td { padding:2px 6px; }
+  .leaflet-popup-content .k { color: var(--muted); }
+  .leaflet-popup-content .v { color: var(--text); }
 </style>
 </head>
 <body>
@@ -167,7 +187,7 @@
       <div class="card">
         <h3>Στρώσεις</h3>
         <div id="layerList" class="layers"></div>
-        <div class="muted">👁 εμφάνιση/απόκρυψη — 🧾 attributes — 🎨 style — 🗑 διαγραφή — auto fit</div>
+        <div class="muted">👁 εμφάνιση/απόκρυψη — 🧾 attributes — 🎨 style — 🛈 identify — 🗑 διαγραφή — auto fit</div>
       </div>
 
       <div class="card">
@@ -178,7 +198,7 @@
 
     <section class="canvas"><div id="map"></div></section>
 
-    <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
+    <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Identify • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
   </div>
 
   <!-- STYLE PANEL (per layer) -->
@@ -386,6 +406,36 @@
     return qs;
   }
 
+  // ---------- IDENTIFY MODE (per layer) ----------
+  const identify = { active:false, layerId:null, btnEl:null };
+  function setIdentify(layerId, btnEl){
+    if(identify.active && identify.layerId === layerId){
+      identify.active = false; identify.layerId = null;
+      btnEl?.classList.remove('primary');
+      document.getElementById('map').style.cursor = '';
+      return;
+    }
+    if(identify.btnEl) identify.btnEl.classList.remove('primary');
+    identify.active = true;
+    identify.layerId = layerId;
+    identify.btnEl = btnEl || null;
+    btnEl?.classList.add('primary');
+    document.getElementById('map').style.cursor = 'help';
+  }
+  document.addEventListener('keydown', (e)=>{
+    if(e.key === 'Escape' && identify.active){
+      identify.active = false; identify.layerId = null;
+      identify.btnEl?.classList.remove('primary');
+      document.getElementById('map').style.cursor = '';
+    }
+  });
+  function identifyContent(layerName, props){
+    const rows = Object.entries(props||{}).map(([k,v])=>
+      `<tr><td class="k">${k}</td><td class="v">${v==null?'':v}</td></tr>`
+    ).join('');
+    return `<div><strong>${layerName}</strong><table>${rows}</table></div>`;
+  }
+
   // ---------- RENDERING ----------
   function defaultStyle(kind){
     return {
@@ -438,8 +488,22 @@
       pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
       style: (f)=> symb(f),
       onEachFeature:(f,l)=>{
-        const props=f.properties||{}; const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
+        // default popup (εκτός Identify)
+        const props=f.properties||{};
+        const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
         l.bindPopup(`<div style="font:13px system-ui"><strong>${layer.name}</strong><table>${rows}</table></div>`);
+
+        // Identify override: όταν είναι ενεργό για αυτό το layer
+        l.on('click', (ev)=>{
+          if(!(identify.active && identify.layerId === layer.id)) return;
+          L.DomEvent.stop(ev);
+          l.closePopup();
+          const html = identifyContent(layer.name, props);
+          L.popup({ closeButton:true })
+           .setLatLng(ev.latlng)
+           .setContent(html)
+           .openOn(map);
+        });
       }
     });
   }
@@ -452,14 +516,26 @@
       const meta=document.createElement('div'); meta.className='meta';
       meta.innerHTML = `<div>${L.name}</div><small>${L.kind}</small>`;
       const controls=document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
+
       const eye=document.createElement('button'); eye.className='btn'; eye.textContent=L.visible?'👁':'🚫';
       eye.onclick=()=>{ L.visible=!L.visible; if(L.visible) L.leaflet.addTo(map); else map.removeLayer(L.leaflet); eye.textContent=L.visible?'👁':'🚫'; };
+
       const tbl=document.createElement('button'); tbl.className='btn'; tbl.textContent='🧾'; tbl.title='Attribute table';
       tbl.onclick=()=> openAttrTable(L.id);
-      const sty=document.createElement('button'); sty.className='btn'; sty.textContent='🎨'; sty.onclick=()=> openStylePanel(L.id);
-      const del=document.createElement('button'); del.className='btn'; del.textContent='🗑';
+
+      const sty=document.createElement('button'); sty.className='btn'; sty.textContent='🎨'; sty.title='Style'; sty.onclick=()=> openStylePanel(L.id);
+
+      const idBtn=document.createElement('button'); idBtn.className='btn'; idBtn.textContent='🛈'; idBtn.title='Identify (click features)';
+      idBtn.onclick=()=> setIdentify(L.id, idBtn);
+
+      const del=document.createElement('button'); del.className='btn'; del.textContent='🗑'; del.title='Delete';
       del.onclick=()=>{ map.removeLayer(L.leaflet); layers = layers.filter(x=>x.id!==L.id); renderList(); };
-      controls.appendChild(eye); controls.appendChild(tbl); controls.appendChild(sty); controls.appendChild(del);
+
+      controls.appendChild(eye);
+      controls.appendChild(tbl);
+      controls.appendChild(sty);
+      controls.appendChild(idBtn);   // 👈 Identify
+      controls.appendChild(del);
       row.appendChild(meta); row.appendChild(controls);
       elList.appendChild(row);
     });
@@ -469,7 +545,7 @@
     const id='lyr_'+Math.random().toString(36).slice(2,9);
     const kind=detectKind(gj);
     const style = defaultStyle(kind);
-    const leaflet = buildLeaflet({ gj, name, style, kind });
+    const leaflet = buildLeaflet({ id, gj, name, style, kind }); // 👈 περνάμε id στο buildLeaflet
     leaflet.addTo(map);
     try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){}
     layers.push({ id,name,gj,leaflet,visible:true,kind,style,fields:fieldsFrom(gj) });
@@ -783,12 +859,10 @@
     if(measureMode==='distance'){
       ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line' });
     }else{
-      // area ghost as open polygon-ish (visual), fill low opacity
       ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line' });
     }
     ghost.addTo(measureLayer);
 
-    // live readout with cursor included
     if(measureMode==='distance'){
       const line = turf.lineString([...pts, [latlng.lng, latlng.lat]]);
       const lenKm = turf.length(line, {units:'kilometers'});
@@ -823,7 +897,7 @@
     sketch && sketch.addTo(measureLayer);
   }
   function startMeasure(mode){
-    cancelMeasure(); // reset
+    cancelMeasure();
     measureMode = mode;
     setCursor(true);
     map.doubleClickZoom.disable();
@@ -868,26 +942,23 @@
   map.on('dblclick', (e)=>{
     if(!measureMode) return;
     L.DomEvent.stop(e);
-    updateSketch(); // final update
-    finishMeasure(); // keep sketch on map, but exit mode
+    updateSketch();
+    finishMeasure();
   });
   L.DomEvent.on(document, 'keydown', (e)=>{
     if(e.key==='Escape') cancelMeasure();
   });
 
-  // Custom control buttons (top-right)
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
       const container = L.DomUtil.create('div','leaflet-control leaflet-control-measure leaflet-bar');
-
       const mkBtn = (title, html) => {
         const a = L.DomUtil.create('a','',container);
         a.href='#'; a.title=title; a.innerHTML=html;
         a.style.padding='8px 12px'; a.style.fontSize='20px';
         return a;
       };
-
       const btnDist  = mkBtn('Measure distance','📏');
       const btnArea  = mkBtn('Measure area','▱');
       const btnClear = mkBtn('Clear measurements','🧹');
@@ -896,7 +967,6 @@
       btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('area'); });
       btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); clearAllMeasurements(); });
 
-      // μην περνάνε events στον χάρτη όταν πατάς τα κουμπιά
       L.DomEvent.disableClickPropagation(container);
       return container;
     }
