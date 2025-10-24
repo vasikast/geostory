@@ -512,7 +512,7 @@
       pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
       style: (f)=> symb(f),
       onEachFeature:(f,l)=>{
-        // default popup (εκτός Identify)
+        // default popup
         const props=f.properties||{};
         const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
         l.bindPopup(`<div style="font:13px system-ui"><strong>${layer.name}</strong><table>${rows}</table></div>`);
@@ -847,6 +847,8 @@
   let pts = [];                // [[lng,lat], ...]
   let sketch = null;           // πρόχειρο σχέδιο όσο μετράμε (interactive:false)
   let ghost  = null;           // live preview
+  let dblCaptureFn = null;     // capture listener για να “τρώνε” τα dblclicks
+  let finishing = false;       // για να μην τρέχουν διπλά οι χειριστές στο finish
 
   // HUD δίπλα στον κέρσορα (live μήκος/εμβαδό)
   const mapEl = document.getElementById('map');
@@ -866,8 +868,9 @@
   function stopHUD(){ hud.style.display='none'; hud.textContent=''; }
   function moveHUD(e){
     const rect = mapEl.getBoundingClientRect();
-    hud.style.left = (e.originalEvent.clientX - rect.left) + 'px';
-    hud.style.top  = (e.originalEvent.clientY - rect.top) + 'px';
+    const ev = e.originalEvent || e;
+    hud.style.left = (ev.clientX - rect.left) + 'px';
+    hud.style.top  = (ev.clientY - rect.top) + 'px';
   }
   function sameLL(a,b){ return a && b && Math.abs(a[0]-b[0])<1e-9 && Math.abs(a[1]-b[1])<1e-9; }
 
@@ -908,12 +911,26 @@
     sketch && sketch.addTo(measureLayer);
   }
 
+  function addDblCapture(){
+    // Τρώμε ΟΛΑ τα dblclicks στο capture phase ώστε να μην ζουμάρει ποτέ ο χάρτης
+    if(dblCaptureFn) return;
+    dblCaptureFn = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); };
+    mapEl.addEventListener('dblclick', dblCaptureFn, true); // capture = true
+  }
+  function removeDblCapture(){
+    if(!dblCaptureFn) return;
+    mapEl.removeEventListener('dblclick', dblCaptureFn, true);
+    dblCaptureFn = null;
+  }
+
   function startMeasure(mode){
     cancelMeasure();               // reset
     measureMode = mode;
     pts = [];
     setCursor(true);
+    finishing = false;
     map.doubleClickZoom.disable(); // 🔒 μην κάνει zoom το dblclick όσο μετράμε
+    addDblCapture();
     hud.style.display='block';
     map.on('mousemove', onMouseMove);
   }
@@ -932,7 +949,10 @@
   }
 
   function finishMeasure(){
-    if(!pts.length){ cancelMeasure(); return; }
+    if(finishing) return; // προφύλαξη
+    finishing = true;
+
+    if(!pts.length){ cancelMeasure(); finishing=false; return; }
 
     // Φτιάχνουμε τελικό, interactive layer (για hover popup)
     let resultLayer = null;
@@ -975,7 +995,11 @@
     pts = [];
 
     // ⚠️ Μικρή καθυστέρηση πριν το re-enable, για να μην “πιάσει” το ίδιο dblclick
-    setTimeout(()=> map.doubleClickZoom.enable(), 120);
+    setTimeout(()=> {
+      map.doubleClickZoom.enable();
+      removeDblCapture();
+      finishing = false;
+    }, 160);
     map.off('mousemove', onMouseMove);
   }
 
@@ -986,7 +1010,11 @@
     stopHUD();
     setCursor(false);
     measureMode = null;
-    setTimeout(()=> map.doubleClickZoom.enable(), 0);
+    finishing = false;
+    setTimeout(()=> {
+      map.doubleClickZoom.enable();
+      removeDblCapture();
+    }, 0);
     map.off('mousemove', onMouseMove);
   }
 
@@ -1024,7 +1052,7 @@
   });
 
   // Επιπλέον ασφάλεια: DOM-capture για dblclick (να ΜΗ ζουμάρει)
-  document.getElementById('map').addEventListener('dblclick', (ev)=>{
+  mapEl.addEventListener('dblclick', (ev)=>{
     if(!measureMode) return;
     ev.preventDefault();
     ev.stopPropagation();
