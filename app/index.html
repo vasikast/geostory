@@ -845,7 +845,7 @@
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null;      // 'distance' | 'area' | null
   let pts = [];                // [[lng,lat], ...]
-  let sketch = null;           // final
+  let sketch = null;           // final shape
   let ghost = null;            // live preview
 
   // HUD δίπλα στον κέρσορα
@@ -870,20 +870,21 @@
     hud.style.left = (e.originalEvent.clientX - rect.left) + 'px';
     hud.style.top  = (e.originalEvent.clientY - rect.top) + 'px';
   }
+  function sameLL(a,b){ return a && b && Math.abs(a[0]-b[0])<1e-9 && Math.abs(a[1]-b[1])<1e-9; }
 
-  // live preview
+  // live preview που ακολουθεί τον κέρσορα
   function updateGhost(latlng){
     if(!measureMode || pts.length===0) return;
     clearGhost();
     const path = [...pts.map(([lng,lat])=>[lat,lng]), [latlng.lat, latlng.lng]];
     if(measureMode==='distance'){
-      ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line' });
+      ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line', interactive:false });
       const line = turf.lineString([...pts, [latlng.lng, latlng.lat]]);
       const lenKm = turf.length(line, {units:'kilometers'});
       hud.textContent = `Length: ${kmFmt(lenKm)}`;
       hud.style.display='block';
     }else{
-      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line' });
+      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line', interactive:false });
       if(pts.length>=2){
         const poly = turf.polygon([[...pts, [latlng.lng, latlng.lat], pts[0]]]);
         const a = turf.area(poly);
@@ -896,14 +897,14 @@
     ghost.addTo(measureLayer);
   }
 
-  // τρέχον σχέδιο (καθώς κλικάρουμε)
+  // τρέχον σχέδιο όσο κλικάρουμε
   function updateSketch(){
     if(!pts.length) return;
     clearSketch();
     if(measureMode==='distance'){
-      sketch = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3});
+      sketch = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3,interactive:false});
     }else if(measureMode==='area'){
-      sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1});
+      sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:false});
     }
     sketch && sketch.addTo(measureLayer);
   }
@@ -968,17 +969,41 @@
     moveHUD(e);
     updateGhost(e.latlng);
   }
+
+  // -- Clicks (μονό κλικ: προσθήκη κορυφής)
   map.on('click', (e)=>{
     if(!measureMode) return;
+    // αγνόησε το “δεύτερο” κλικ της διπλο-κλικ ενέργειας
+    if(e.originalEvent && e.originalEvent.detail > 1) return;
     const ll = e.latlng; pts.push([ll.lng, ll.lat]);
     updateSketch();
   });
+
+  // -- Double click: προσθήκη τελευταίας κορυφής (αν χρειάζεται) και finish
   map.on('dblclick', (e)=>{
     if(!measureMode) return;
     L.DomEvent.stop(e);
+    const ll = e.latlng;
+    const last = pts[pts.length-1];
+    const cur = [ll.lng, ll.lat];
+    if(!sameLL(last, cur)) pts.push(cur); // πρόσθεσε τελικό σημείο μόνο αν δεν είναι ήδη ίδιο
     updateSketch();
     finishMeasure();
   });
+
+  // Επιπλέον ασφάλεια: DOM-level capture για dblclick (σε edge cases)
+  mapEl.addEventListener('dblclick', (ev)=>{
+    if(!measureMode) return;
+    ev.preventDefault();
+    const latlng = map.mouseEventToLatLng(ev);
+    const last = pts[pts.length-1];
+    const cur = [latlng.lng, latlng.lat];
+    if(!sameLL(last, cur)) pts.push(cur);
+    updateSketch();
+    finishMeasure();
+  }, true);
+
+  // ESC για ακύρωση
   L.DomEvent.on(document, 'keydown', (e)=>{
     if(e.key==='Escape') cancelMeasure();
   });
@@ -1047,7 +1072,7 @@
                 'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\n' +
                 (data.error ? `Λεπτομέρεια: ${data.error}` : text));
         }else if(r.status === 400){
-          alert('Σφάλμα 400 (Bad Request): ' + (data.error || text));
+          alert('Σφάλμα 400 (Bad Request): ' + (data.error ή text));
         }else{
           alert(`Σφάλμα ${r.status}: ` + (data.error || text || 'Άγνωστο σφάλμα'));
         }
