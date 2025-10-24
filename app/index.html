@@ -95,7 +95,7 @@
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
 
-  /* Measure controls: όμορφα, κεντραρισμένα, “pill” */
+  /* Measure controls: icon-only, “pill”, yellow theme */
   .leaflet-control-measure {
     display: flex;
     gap: 8px;
@@ -111,62 +111,49 @@
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    padding: 8px 12px !important;
-    min-width: 44px;
-    height: 40px;
-    font-size: 15px !important;
-    line-height: 1;
-    font-weight: 700;
+    width: 44px;
+    height: 44px;
+    padding: 0 !important;
     border-radius: 10px;
-    border: 1px solid var(--line);
+    border: 1px solid var(--measure-border);
     text-decoration: none;
+    box-shadow: 0 2px 10px rgba(0,0,0,.08);
+    transition: transform .08s ease, filter .15s ease, box-shadow .15s ease;
+    background: var(--measure-bg);
+    color: var(--measure-fg);
   }
-  .leaflet-control-measure a .ico { font-size: 18px; }
   .leaflet-control-measure a:hover { filter: brightness(1.05); }
+  .leaflet-control-measure a:active { transform: translateY(1px) scale(0.98); }
   .leaflet-control-measure a.active { outline: 2px solid var(--acc); }
-  :root[data-theme="light"] .leaflet-control-measure a {
-    background: #0b1020; color:#fff; border-color:#0b1020;
+  .leaflet-control-measure a .ico {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; line-height: 1;
+    width: 100%; height: 100%;
   }
-  :root[data-theme="dark"] .leaflet-control-measure a {
-    background: #fff; color:#0b1020; border-color:#fff;
+  /* Yellow theme vars for both light & dark */
+  :root { --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020; }
+  :root[data-theme="dark"] {
+    --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
   }
 
   /* Ghost preview animation (direction hint) */
-  .measure-ghost-line{
-    stroke-dasharray:6 6;
-    animation: dash 1s linear infinite;
-  }
-  @keyframes dash{
-    to { stroke-dashoffset:-12; }
-  }
+  .measure-ghost-line{ stroke-dasharray:6 6; animation: dash 1s linear infinite; }
+  @keyframes dash{ to { stroke-dashoffset:-12; } }
 
   /* Theme toggle inverted look (light↔dark) */
   #themeToggle { transition: filter .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
   :root[data-theme="light"] #themeToggle{
-    background:#0b1020 !important;
-    color:#ffffff !important;
-    border-color:#0b1020 !important;
+    background:#0b1020 !important; color:#ffffff !important; border-color:#0b1020 !important;
   }
   :root[data-theme="dark"] #themeToggle{
-    background:#ffffff !important;
-    color:#0b1020 !important;
-    border-color:#ffffff !important;
+    background:#ffffff !important; color:#0b1020 !important; border-color:#ffffff !important;
   }
 
-  /* Inverted Leaflet popups per theme (για Identify & measure result) */
+  /* Inverted Leaflet popups per theme (Identify & measure result) */
   :root[data-theme="light"] .leaflet-popup-content-wrapper,
-  :root[data-theme="light"] .leaflet-popup-tip {
-    background: #0b1020;
-    color: #ffffff;
-    border-color: #0b1020;
-  }
+  :root[data-theme="light"] .leaflet-popup-tip { background:#0b1020; color:#ffffff; border-color:#0b1020; }
   :root[data-theme="dark"] .leaflet-popup-content-wrapper,
-  :root[data-theme="dark"] .leaflet-popup-tip {
-    background: #ffffff;
-    color: #0b1020;
-    border-color: #ffffff;
-  }
+  :root[data-theme="dark"] .leaflet-popup-tip { background:#ffffff; color:#0b1020; border-color:#ffffff; }
   .leaflet-popup-content { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; }
   .leaflet-popup-content table { border-collapse:collapse; }
   .leaflet-popup-content td { padding:2px 6px; }
@@ -175,16 +162,11 @@
 
   /* HUD (live μέτρηση) δίπλα στον κέρσορα */
   #measureHud{
-    position: absolute;
-    pointer-events: none;
-    z-index: 5000;
+    position: absolute; pointer-events: none; z-index: 5000;
     transform: translate(12px, 12px);
     font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    padding: 6px 8px;
-    border-radius: 8px;
-    border: 1px solid var(--line);
-    box-shadow: 0 6px 20px rgba(0,0,0,.22);
-    display: none;
+    padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+    box-shadow: 0 6px 20px rgba(0,0,0,.22); display: none;
   }
   :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
   :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
@@ -863,8 +845,8 @@
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null;      // 'distance' | 'area' | null
   let pts = [];                // [[lng,lat], ...]
-  let sketch = null;           // final (τρέχον σχέδιο μέχρι να τελειώσει)
-  let ghost = null;            // live preview που ακολουθεί τον κέρσορα
+  let sketch = null;           // final
+  let ghost = null;            // live preview
 
   // HUD δίπλα στον κέρσορα
   const mapEl = document.getElementById('map');
@@ -956,7 +938,7 @@
         .openOn(map);
     }
 
-    // αφήνουμε το τελικό sketch πάνω στο χάρτη μέχρι να γίνει Clear
+    // αφήνουμε το τελικό sketch πάνω στο χάρτη μέχρι Clear
     stopHUD();
     setCursor(false);
     measureMode = null;
@@ -1001,7 +983,7 @@
     if(e.key==='Escape') cancelMeasure();
   });
 
-  // Custom control buttons (top-right) — όμορφα + centered
+  // Custom control buttons (top-right) — icon-only, yellow
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
@@ -1009,12 +991,14 @@
       const mkBtn = (label, iconTxt) => {
         const a = L.DomUtil.create('a','',container);
         a.href='#';
-        a.innerHTML = `<span class="ico">${iconTxt}</span><span>${label}</span>`;
+        a.innerHTML = `<span class="ico">${iconTxt}</span>`;
+        a.title = label;
+        a.setAttribute('aria-label', label);
         return a;
       };
-      const btnDist  = mkBtn('Line','📏');
-      const btnArea  = mkBtn('Area','▱');
-      const btnClear = mkBtn('Clear','🧹');
+      const btnDist  = mkBtn('Measure line','📏');
+      const btnArea  = mkBtn('Measure area','▱');
+      const btnClear = mkBtn('Clear measurements','🧹');
 
       function setActive(b){
         [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
