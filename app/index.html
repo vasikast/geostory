@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>GeoVisual Stories — Editor</title>
 
+<!-- Leaflet -->
 <link rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
@@ -15,6 +16,9 @@
 
 <!-- (Προαιρετικά) GeoPackage reader για browser -->
 <script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
+
+<!-- ✅ Attribute Window styles (shared με Viewer) -->
+<link rel="stylesheet" href="/public/css/attrwin.css?v=3" />
 
 <style>
   /* THEME VARIABLES */
@@ -86,29 +90,6 @@
   .badge{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:999px;border:1px solid var(--line)}
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
-
-  /* Attribute table panel */
-  .table-panel{display:none;position:fixed;left:16px;right:16px;bottom:16px;max-height:50vh;
-    background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;
-    box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:6000}
-  .table-panel.active{display:block}
-  .table-head{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:8px}
-  .table-head .left{display:flex;gap:8px;align-items:center}
-  .table{width:100%;border-collapse:separate;border-spacing:0}
-  .table th,.table td{padding:8px 10px;border-bottom:1px solid var(--line);font-size:13px;white-space:nowrap}
-  .table th{position:sticky;top:0;background:color-mix(in oklab,var(--panel) 90%,transparent);cursor:pointer}
-  .table .num{font-variant-numeric:tabular-nums}
-  .table-controls{display:flex;gap:8px;align-items:center}
-  .badge2{border:1px solid var(--line);background:color-mix(in oklab,var(--panel) 85%,transparent);padding:4px 8px;border-radius:10px;font-size:12px}
-</style>
-
-<!-- Floating Attribute Window styles (reuse με viewer) -->
-<link rel="stylesheet" href="/public/css/attrwin.css?v=3">
-
-<!-- (Προαιρετικό) Αν θες να κρύψεις το παλιό docked attribute panel του editor -->
-<style>
-  /* Αν έχεις docked panel στο κάτω μέρος και δε το θες πλέον */
-  /* .table-panel { display: none !important; } */
 </style>
 </head>
 <body>
@@ -117,8 +98,6 @@
       <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
       <div class="actions">
         <button id="themeToggle" class="btn" title="Theme">🌗 Theme</button>
-        <!-- ΝΕΟ: trigger για το floating Attribute Window -->
-        <button id="openTable" class="btn" title="Attribute Table">🧾 Attributes</button>
         <button id="btnGenerate" class="btn primary">Generate Link</button>
       </div>
     </header>
@@ -170,116 +149,43 @@
     <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
   </div>
 
-  <!-- STYLE PANEL (per layer) -->
-  <div id="stylePanel" class="style-panel">
-    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
-      <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
-      <button id="spClose" class="btn">✕</button>
-    </div>
-    <div class="muted" id="spGeom" style="margin-top:4px"></div>
-
-    <div class="card" style="margin-top:8px">
-      <h3>Renderer</h3>
-      <select id="renderer">
-        <option value="single">Single symbol</option>
-        <option value="unique">Unique values (categorical)</option>
-        <option value="graduated">Graduated (quantiles)</option>
-      </select>
-    </div>
-
-    <div class="card" id="singleBlock">
-      <h3>Single symbol</h3>
-      <div class="row">
-        <div>
-          <label>Fill color</label>
-          <input type="color" id="fillColor" value="#4361ee">
-        </div>
-        <div>
-          <label>Stroke color</label>
-          <input type="color" id="strokeColor" value="#4cc9f0">
-        </div>
-      </div>
-      <div class="row">
-        <div>
-          <label>Stroke width (px)</label>
-          <input type="number" id="strokeWidth" min="0" max="12" value="2">
-        </div>
-        <div>
-          <label>Opacity</label>
-          <input type="number" id="opacity" min="0" max="1" step="0.05" value="0.75">
-        </div>
-      </div>
-      <div id="pointOpts" class="row" style="margin-top:8px">
-        <div>
-          <label>Point size (px)</label>
-          <input type="number" id="pointSize" min="4" max="32" value="10">
-        </div>
-        <div>
-          <label>Point shape</label>
-          <select id="pointShape">
-            <option value="circle">Circle</option>
-            <option value="square">Square</option>
-          </select>
-        </div>
+  <!-- ✅ Attribute Table Window (draggable/resizable/min/max/close) -->
+  <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
+    <div class="win-header" id="attrwin-header">
+      <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
+      <div class="win-actions">
+        <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize">—</button>
+        <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
+        <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
     </div>
-
-    <div class="card" id="fieldBlock">
-      <h3>Field / Palette</h3>
-      <label>Attribute field</label>
-      <select id="fieldSelect"></select>
-
-      <div id="paletteBlock" style="margin-top:8px">
-        <label>Color palette</label>
-        <select id="paletteSelect">
-          <option value="category10">Category10</option>
-          <option value="set3">Set3</option>
-          <option value="pastel">Pastel</option>
-          <option value="viridis">Viridis</option>
-          <option value="magma">Magma</option>
-          <option value="plasma">Plasma</option>
-          <option value="blues">Blues</option>
-          <option value="reds">Reds</option>
-          <option value="greens">Greens</option>
-        </select>
-      </div>
-
-      <div id="classesBlock" style="margin-top:8px">
-        <label>Classes (graduated)</label>
-        <input type="number" id="classCount" min="3" max="9" value="5">
-      </div>
-
-      <div class="legend" id="legendPreview"></div>
+    <div class="win-toolbar">
+      <input id="attrwin-search" type="search" placeholder="Αναζήτηση…" />
+      <button id="attrwin-csv" class="btn btn-sm">Export CSV</button>
+      <span id="attrwin-count" class="muted"></span>
     </div>
-
-    <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="applyStyle" class="btn primary">Apply</button>
-      <button id="resetStyle" class="btn">Reset</button>
+    <div class="win-body">
+      <table id="attrwin-table">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
     </div>
+    <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
   </div>
 
-  <!-- ATTRIBUTE TABLE PANEL (παλιό docked) -->
-  <div id="attrPanel" class="table-panel">
-    <div class="table-head">
-      <div class="left">
-        <strong id="attrTitle">Attributes</strong>
-        <span id="attrInfo" class="badge2"></span>
-      </div>
-      <div class="table-controls">
-        <input id="attrSearch" type="search" placeholder="Search…" />
-        <button id="attrCsv" class="btn">⬇️ CSV</button>
-        <button id="attrClose" class="btn">✕</button>
-      </div>
-    </div>
-    <div style="overflow:auto">
-      <table class="table" id="attrTable"></table>
-    </div>
-    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
-      <button id="attrPrev" class="btn">◀ Prev</button>
-      <span id="attrPage" class="badge2">1 / 1</span>
-      <button id="attrNext" class="btn">Next ▶</button>
-    </div>
-  </div>
+  <!-- ✅ Κάνουμε import το shared attr window module και “δένουμε” τα events -->
+  <script type="module">
+    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
+
+    // Να μη φεύγουν events προς τον χάρτη όταν δουλεύεις στο παράθυρο
+    const winEl = document.getElementById('attrwin');
+    ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
+      .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
+
+    // Διαθέσιμες global refs για μη-module script
+    window.openAttrWindow = openAttrWindow;
+    window.setAttrData = setAttrData;
+  </script>
 
 <script>
   // ---------- THEME TOGGLE ----------
@@ -562,8 +468,7 @@
     const palette = PALETTES[sp.field.palette.value] || PALETTES.category10;
     const feats = (LYR.gj.features||[]);
     if(mode==='unique'){
-      const uniq = [...new Set(feats.map(f=> String(f.properties?.[field])))]
-                    .slice(0, palette.length);
+      const uniq = [...new Set(feats.map(f=> String(f.properties?.[field])))].slice(0, palette.length);
       const items = uniq.map((v,i)=>({value:v,color:palette[i%palette.length]}));
       legend.dataset.items = JSON.stringify(items);
       items.forEach(it=>{
@@ -645,106 +550,14 @@
   };
 
   // ---------- ATTRIBUTE TABLE (Editor) ----------
-  const AP = {
-    el: document.getElementById('attrPanel'),
-    title: document.getElementById('attrTitle'),
-    info: document.getElementById('attrInfo'),
-    table: document.getElementById('attrTable'),
-    search: document.getElementById('attrSearch'),
-    csv: document.getElementById('attrCsv'),
-    close: document.getElementById('attrClose'),
-    prev: document.getElementById('attrPrev'),
-    next: document.getElementById('attrNext'),
-    pageBadge: document.getElementById('attrPage'),
-    layerId: null,
-    rows: [],
-    headers: [],
-    page: 1,
-    perPage: 50,
-    sortKey: null,
-    sortAsc: true,
-  };
-
+  // ✨ Αντικατάσταση του παλιού panel: χρησιμοποιούμε το shared attr window.
   function openAttrTable(layerId){
     const LYR = layers.find(x=>x.id===layerId);
-    if(!LYR){ return; }
-    AP.layerId = layerId;
+    if(!LYR) return;
     const feats = (LYR.gj.features||[]);
-    const headers = new Set();
-    feats.forEach(f=> Object.keys(f.properties||{}).forEach(k=>headers.add(k)));
-    AP.headers = Array.from(headers);
-    AP.rows = feats.map((f,i)=>({ __id: i+1, ...f.properties }));
-    AP.page = 1; AP.sortKey=null; AP.sortAsc=true;
-    AP.title.textContent = `Attributes — ${LYR.name}`;
-    AP.info.textContent = `${AP.rows.length} features • ${AP.headers.length} fields`;
-    AP.search.value = '';
-    AP.el.classList.add('active');
-    renderAttrTable();
-  }
-  function closeAttrTable(){ AP.el.classList.remove('active'); AP.layerId=null; }
-  AP.close.addEventListener('click', closeAttrTable);
-  AP.search.addEventListener('input', ()=>{ AP.page=1; renderAttrTable(); });
-  AP.prev.addEventListener('click', ()=>{ if(AP.page>1){ AP.page--; renderAttrTable(); } });
-  AP.next.addEventListener('click', ()=>{ const max=Math.ceil(filteredRows().length/AP.perPage); if(AP.page<max){ AP.page++; renderAttrTable(); } });
-  AP.csv.addEventListener('click', ()=>{
-    const rows = filteredRows();
-    const keys = ['__id', ...AP.headers];
-    const escape = v => `"${String(v??'').replace(/"/g,'""')}"`;
-    const csv = [keys.join(',')].concat(rows.map(r=> keys.map(k=>escape(r[k])).join(','))).join('\r\n');
-    const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href=url; a.download='attributes.csv'; a.click();
-    URL.revokeObjectURL(url);
-  });
-  function filteredRows(){
-    const q = AP.search.value.trim().toLowerCase();
-    if(!q) return AP.rows;
-    return AP.rows.filter(r=> AP.headers.some(h=> String(r[h]??'').toLowerCase().includes(q)));
-  }
-  function renderAttrTable(){
-    const rows = filteredRows();
-    // sort
-    if(AP.sortKey){
-      rows.sort((a,b)=>{
-        const A=a[AP.sortKey], B=b[AP.sortKey];
-        if(A==null && B==null) return 0;
-        if(A==null) return AP.sortAsc? -1:1;
-        if(B==null) return AP.sortAsc? 1:-1;
-        const na = Number(A), nb = Number(B);
-        if(isFinite(na) && isFinite(nb)) return AP.sortAsc ? na-nb : nb-na;
-        return AP.sortAsc ? String(A).localeCompare(String(B)) : String(B).localeCompare(String(A));
-      });
-    }
-    const start = (AP.page-1)*AP.perPage;
-    const slice = rows.slice(start, start+AP.perPage);
-    const totalPages = Math.max(1, Math.ceil(rows.length / AP.perPage));
-    AP.pageBadge.textContent = `${AP.page} / ${totalPages}`;
-    // build table
-    const keys = ['#', ...AP.headers];
-    const thead = `<tr>${keys.map(k=>{
-      const key = k === '#' ? '__id' : k;
-      const arrow = (AP.sortKey===key) ? (AP.sortAsc?' ▲':' ▼') : '';
-      return `<th data-key="${key}">${k}${arrow}</th>`;
-    }).join('')}</tr>`;
-    const tbody = slice.map(r=> `<tr>${
-      ['__id', ...AP.headers].map(k=>{
-        const v = r[k];
-        const cls = typeof v === 'number' ? 'num' : '';
-        return `<td class="${cls}">${v==null?'':v}</td>`;
-      }).join('')
-    }</tr>`).join('');
-    AP.table.innerHTML = thead + tbody;
-    // header click sort
-    AP.table.querySelectorAll('th').forEach(th=>{
-      const key = th.dataset.key;
-      th.onclick = ()=>{
-        if(!key) return;
-        if(AP.sortKey===key){ AP.sortAsc=!AP.sortAsc; }
-        else { AP.sortKey=key; AP.sortAsc=true; }
-        renderAttrTable();
-      };
-    });
+    const rows = feats.map((f,i)=>({ id: f.id ?? (i+1), ...f.properties }));
+    // ανοίγει το κοινό attr window (ορίζεται στο module παραπάνω)
+    window.openAttrWindow(rows, { title: `Attributes • ${LYR.name}` });
   }
 
   // ---------- GENERATE LINK ----------
@@ -768,63 +581,6 @@
       alert('Το link δημιουργήθηκε και αντιγράφηκε:\n'+link);
     }catch(e){ alert('Σφάλμα δικτύου'); }
   });
-</script>
-
-<!-- Floating Attribute Table Window (draggable/resizable/min/max/close) -->
-<div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
-  <div class="win-header" id="attrwin-header">
-    <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
-    <div class="win-actions">
-      <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize">—</button>
-      <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
-      <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
-    </div>
-  </div>
-  <div class="win-toolbar">
-    <input id="attrwin-search" type="search" placeholder="Αναζήτηση…" />
-    <button id="attrwin-csv" class="btn btn-sm">Export CSV</button>
-    <span id="attrwin-count" class="muted"></span>
-  </div>
-  <div class="win-body">
-    <table id="attrwin-table">
-      <thead></thead>
-      <tbody></tbody>
-    </table>
-  </div>
-  <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
-</div>
-
-<!-- Attribute Window logic -->
-<script type="module" src="/public/js/attrwin.js?v=3"></script>
-
-<!-- Hook του κουμπιού του editor για να ανοίγει το floating window -->
-<script type="module">
-  import { openAttrWindow } from '/public/js/attrwin.js?v=3';
-
-  // Επιλογή layer από τον editor: ενεργό > πρώτο ορατό > πρώτο διαθέσιμο
-  function pickEditorLayer() {
-    if (!Array.isArray(window.layers) || window.layers.length === 0) return null;
-
-    // if (typeof window.activeLayerIndex === 'number') return window.layers[window.activeLayerIndex];
-
-    const firstVisible = window.layers.find(L => L && L.visible !== false);
-    return firstVisible || window.layers[0];
-  }
-
-  function rowsFromLayer(layer) {
-    const feats = (layer?.gj?.features || []);
-    return feats.map((f, i) => ({ id: f?.id ?? (i+1), ...(f?.properties || {}) }));
-  }
-
-  // Trigger button (στο header)
-  const btn = document.getElementById('openTable');
-  if (btn) {
-    btn.addEventListener('click', () => {
-      const L = pickEditorLayer();
-      if (!L) { alert('Δεν υπάρχει διαθέσιμο layer.'); return; }
-      openAttrWindow(rowsFromLayer(L), { title: `Attributes • ${L.name || 'Layer'}` });
-    });
-  }
 </script>
 </body>
 </html>
