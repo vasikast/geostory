@@ -14,7 +14,6 @@
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""></script>
 
-<!-- ΔΙΚΟ ΣΟΥ styling (κρατημένο) -->
 <style>
   :root{
     --bg:#f7f8fc; --panel:#ffffff; --card:#ffffff; --text:#0b1020;
@@ -70,8 +69,8 @@
   @media (max-width: 900px){ .wrap{grid-template-columns:1fr} }
 </style>
 
-<!-- Attribute Window styles -->
-<link rel="stylesheet" href="/public/css/attrwin.css" />
+<!-- Attribute Window styles (με cache-busting για να φορτώνει η νέα έκδοση) -->
+<link rel="stylesheet" href="/public/css/attrwin.css?v=2" />
 </head>
 <body>
   <header>
@@ -93,7 +92,7 @@
     <section class="canvas"><div id="map"></div></section>
   </div>
 
-  <!-- Attribute Table Window (draggable/resizable/min/max/close) -->
+  <!-- Attribute Table Window -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
@@ -117,14 +116,14 @@
     <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
   </div>
 
-  <!-- Attribute Window logic -->
-  <script type="module" src="/public/js/attrwin.js"></script>
+  <!-- Attribute Window logic (cache-bust) -->
+  <script type="module" src="/public/js/attrwin.js?v=2"></script>
 
   <!-- Viewer logic -->
   <script type="module">
-    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js';
+    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=2';
 
-    // THEME TOGGLE (όπως είχες)
+    // THEME TOGGLE
     (function(){
       const root = document.documentElement;
       const KEY = 'geostory-theme';
@@ -142,7 +141,7 @@
       });
     })();
 
-    // --------- Φόρτωση state
+    // Φόρτωση story
     const storyId = location.pathname.split('/').pop();
     const res = await fetch('/api/stories/'+storyId);
     if(!res.ok){
@@ -155,7 +154,7 @@
     document.getElementById('title').textContent = state.title || 'Untitled';
     document.getElementById('desc').textContent = state.description || '';
 
-    // --------- Leaflet map
+    // Χάρτης
     const basemaps = {
       osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
       sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
@@ -197,71 +196,37 @@
       }
       return ()=>({ color:'#4cc9f0', weight:2, fillColor:'#4361ee', fillOpacity:0.6 });
     }
-    function pointToLayerFrom(layer){
-      const st = layer.style || {};
-      if((st.renderer||'single')!=='single') return null; // unique/graduated -> circle
-      const s = st.single || {};
-      if(s.pointShape==='square'){
-        return (f,latlng)=>{
-          const size = s.pointSize||10, color = s.fill||'#4361ee';
-          return L.rectangle([
-            [latlng.lat + 0.0001*size, latlng.lng - 0.0001*size],
-            [latlng.lat - 0.0001*size, latlng.lng + 0.0001*size]
-          ], { color, weight:1, fillColor:color, fillOpacity:0.8 });
-        };
-      }
-      return (f,latlng)=>{
-        const size = s.pointSize||10, color = s.fill||'#4361ee';
-        return L.circleMarker(latlng,{ radius:size, color, weight:1, fillColor:color, fillOpacity:0.8 });
-      };
-    }
 
-    // --------- Προσθήκη layers + λίστα
     const layerListEl=document.getElementById('layerList');
-    const uiLayers = []; // {name, gj, group(L.layerGroup or geoJson), rowEl}
+    const uiLayers = [];
 
     (state.layers||[]).forEach((LY, idx)=>{
       const styleFn = styleFrom(LY);
-      const ptFn = pointToLayerFrom(LY);
-      const g=L.geoJSON(LY.gj,{
-        pointToLayer: ptFn || ((f,latlng)=> L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7})),
-        style: styleFn
-      });
+      const g=L.geoJSON(LY.gj,{ style: styleFn });
       if(LY.visible!==false) g.addTo(map);
-      try{ if (idx===0) map.fitBounds(g.getBounds(),{padding:[20,20]}); }catch(_){}
-
+      try{ if(idx===0) map.fitBounds(g.getBounds(),{padding:[20,20]}); }catch(_){}
       const row=document.createElement('div');
       row.className='layer' + (idx===0?' active':'');
-      row.innerHTML = `<span>${LY.name||'Layer'}</span><span class="vis">${LY.visible===false?'(off)':''}</span>`;
+      row.textContent=LY.name||'Layer';
       row.addEventListener('click', ()=>{
-        // ορισμός ενεργού layer στο UI
         uiLayers.forEach((L2,i)=> L2.rowEl.classList.toggle('active', i===idx));
       });
       layerListEl.appendChild(row);
-
-      uiLayers.push({ name: LY.name||'Layer', gj: LY.gj, group: g, rowEl: row });
+      uiLayers.push({ name: LY.name||'Layer', gj: LY.gj, rowEl: row });
     });
 
     function getActiveIndex(){
       return uiLayers.findIndex(L => L.rowEl.classList.contains('active'));
     }
-    function rowsFromGeoJSON(gj){
-      const feats = (gj?.features||[]);
-      const headers = new Set();
-      feats.forEach(f=> Object.keys(f.properties||{}).forEach(k=> headers.add(k)));
-      const rows = feats.map((f,i)=>({ id: f.id ?? (i+1), ...f.properties }));
-      return { rows, headers: Array.from(headers) };
-    }
 
-    // --------- Άνοιγμα Attribute Table για το ενεργό layer
     document.getElementById('openTable').addEventListener('click', ()=>{
       const ai = getActiveIndex();
-      if (ai < 0) { return; }
+      if (ai < 0) return;
       const LAYER = uiLayers[ai];
-      const { rows } = rowsFromGeoJSON(LAYER.gj);
+      const feats = (LAYER.gj?.features||[]);
+      const rows = feats.map((f,i)=>({ id: f.id ?? (i+1), ...f.properties }));
       openAttrWindow(rows, { title: `Attributes • ${LAYER.name}` });
     });
-
   </script>
 </body>
 </html>
