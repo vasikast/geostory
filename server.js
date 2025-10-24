@@ -10,11 +10,14 @@ import { fileURLToPath } from "url";
 // ----- paths / env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const PORT = process.env.PORT || 8080;
+const PORT = Number(process.env.PORT) || 8080;
+const HOST = "0.0.0.0"; // <— ΣΗΜΑΝΤΙΚΟ για Render/Cloud
 const ALLOW_EDITOR_NETWORK = process.env.ALLOW_EDITOR_NETWORK === "1"; // προαιρετικό override
+const IS_PROD = process.env.NODE_ENV === "production";
 
 // ----- app init
 const app = express();
+app.set("trust proxy", 1); // εμπιστεύεται x-forwarded-* πίσω από Render proxy
 app.use(express.json({ limit: "100mb" }));
 app.use(cors());
 
@@ -23,6 +26,14 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
+// (προαιρετικό) force HTTPS μόνο σε production
+app.use((req, res, next) => {
+  if (IS_PROD && req.headers["x-forwarded-proto"] !== "https") {
+    return res.redirect("https://" + req.headers.host + req.url);
+  }
   next();
 });
 
@@ -48,14 +59,9 @@ const slug = (n = 7) => crypto.randomBytes(16).toString("base64url").slice(0, n)
 
 // ---- helper: είναι το αίτημα από τον ίδιο υπολογιστή;
 function isLoopback(req) {
-  const ip = req.ip || req.connection?.remoteAddress || "";
-  // Express συνήθως δίνει ::1 (IPv6 loopback) ή ::ffff:127.0.0.1
-  return (
-    ip === "127.0.0.1" ||
-    ip === "::1" ||
-    ip.endsWith("127.0.0.1") ||
-    ip.startsWith("::ffff:127.0.0.1")
-  );
+  // με trust proxy, το req.ip λαμβάνει υπόψη x-forwarded-for
+  const ip = (req.ip || "").replace("::ffff:", "");
+  return ip === "127.0.0.1" || ip === "::1";
 }
 
 // ---- guard για Editor & API (μόνο τοπικά, εκτός αν ALLOW_EDITOR_NETWORK=1)
@@ -144,9 +150,9 @@ app.get("/s/:id", (_req, res) => {
   res.sendFile(path.join(__dirname, "public", "viewer.html"));
 });
 
-// ----- start
-app.listen(PORT, () => {
-  console.log(`✅ Running → http://localhost:${PORT}`);
+// ----- start (bind σε 0.0.0.0)
+app.listen(PORT, HOST, () => {
+  console.log(`✅ Server running at http://${HOST}:${PORT}`);
   console.log(
     ALLOW_EDITOR_NETWORK
       ? "⚠️ Editor/API is accessible on the network (ALLOW_EDITOR_NETWORK=1)."
