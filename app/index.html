@@ -378,6 +378,7 @@
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
   const map = L.map('map',{zoomControl:true,attributionControl:true});
+  map.doubleClickZoom.disable(); // μόνιμα off ώστε ποτέ να μην κάνει zoom με dblclick
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
 
   // ---------- STATE ----------
@@ -508,7 +509,6 @@
       pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
       style: (f)=> symb(f),
       onEachFeature:(f,l)=>{
-        // default popup
         const props=f.properties||{};
         const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
         l.bindPopup(`<div style="font:13px system-ui"><strong>${layer.name}</strong><table>${rows}</table></div>`);
@@ -793,6 +793,7 @@
     const table = document.getElementById('attrwin-table');
     if(!table) return;
     const thead = table.querySelector('thead');
+    noHead = !thead;
     const tbody = table.querySelector('tbody');
     if(!thead || !tbody) return;
 
@@ -845,10 +846,9 @@
   let sketch = null;           // πρόχειρο σχέδιο
   let ghost  = null;           // live preview
   let finishing = false;       // guard για finish
-  let dblCaptureFn = null;     // capture dblclick
 
   // HUD (δίπλα στον κέρσορα)
-  const mapEl = document.getElementById('map');
+  const mapEl = map.getContainer();
   const hud = document.createElement('div');
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
@@ -908,26 +908,12 @@
     sketch && sketch.addTo(measureLayer);
   }
 
-  function addDblCapture(){
-    if(dblCaptureFn) return;
-    dblCaptureFn = (ev)=>{ ev.preventDefault(); ev.stopPropagation(); };
-    // Capture phase, για να μην περάσει τίποτα στον Leaflet
-    mapEl.addEventListener('dblclick', dblCaptureFn, true);
-  }
-  function removeDblCapture(){
-    if(!dblCaptureFn) return;
-    mapEl.removeEventListener('dblclick', dblCaptureFn, true);
-    dblCaptureFn = null;
-  }
-
   function startMeasure(mode){
     cancelMeasure();               // reset
     measureMode = mode;
     pts = [];
     setCursor(true);
     finishing = false;
-    map.doubleClickZoom.disable(); // Μη ζουμάρει όσο μετράμε
-    addDblCapture();
     hud.style.display='block';
     map.on('mousemove', onMouseMove);
   }
@@ -986,12 +972,7 @@
     measureMode = null;
     pts = [];
 
-    // μικρή καθυστέρηση για να μην “πιάσει” το ίδιο dblclick
-    setTimeout(()=> {
-      map.doubleClickZoom.enable();
-      removeDblCapture();
-      finishing = false;
-    }, 160);
+    setTimeout(()=> { finishing = false; }, 120);
     map.off('mousemove', onMouseMove);
   }
 
@@ -1003,10 +984,6 @@
     setCursor(false);
     measureMode = null;
     finishing = false;
-    setTimeout(()=> {
-      map.doubleClickZoom.enable();
-      removeDblCapture();
-    }, 0);
     map.off('mousemove', onMouseMove);
   }
 
@@ -1030,25 +1007,21 @@
     updateSketch();
   });
 
-  // ΔΙΠΛΟ ΚΛΙΚ: πρόσθεσε τελικό σημείο (αν λείπει) + ΤΕΡΜΑΤΙΣΜΟΣ
-  map.on('dblclick', (e)=>{
-    if(!measureMode) return;
-    L.DomEvent.preventDefault(e);
-    L.DomEvent.stop(e);
-    const ll = e.latlng;
-    const last = pts[pts.length-1];
-    const cur = [ll.lng, ll.lat];
-    if(!sameLL(last, cur)) pts.push(cur);
-    updateSketch();
-    finishMeasure();
-  });
-
-  // Επιπλέον DOM capture: τρώμε το dblclick οπωσδήποτε
-  mapEl.addEventListener('dblclick', (ev)=>{
-    if(!measureMode) return;
-    ev.preventDefault();
-    ev.stopPropagation();
-  }, true);
+  // CAPTURE dblclick στο container: ΣΙΓΟΥΡΟΣ τερματισμός μέτρησης
+  if(!mapEl.__dblFinishBound){
+    mapEl.addEventListener('dblclick', (ev)=>{
+      if(!measureMode) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      const ll = map.mouseEventToLatLng(ev);
+      const cur = [ll.lng, ll.lat];
+      const last = pts[pts.length-1];
+      if(!last || !sameLL(last, cur)) pts.push(cur);
+      updateSketch();
+      finishMeasure(); // ✅ τελείωσε η μέτρηση
+    }, true); // capture
+    mapEl.__dblFinishBound = true;
+  }
 
   // ESC για ακύρωση
   L.DomEvent.on(document, 'keydown', (e)=>{
