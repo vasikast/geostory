@@ -52,7 +52,6 @@
     cursor:pointer; display:flex; align-items:center; justify-content:space-between;
   }
   .layer.active{ outline:2px solid var(--acc); }
-  .layer .vis{font-size:12px;color:var(--muted)}
   .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
   #map{height:100%;min-height:70vh;background:#0a0f1e}
 
@@ -219,10 +218,12 @@
       return uiLayers.findIndex(L => L.rowEl.classList.contains('active'));
     }
 
+    // ✅ ΑΝΟΙΓΕΙ ΠΑΝΤΑ (fallback στο 1ο layer αν δεν υπάρχει active)
     document.getElementById('openTable').addEventListener('click', ()=>{
-      const ai = getActiveIndex();
-      if (ai < 0) return;
+      let ai = getActiveIndex();
+      if (ai < 0) ai = 0;
       const LAYER = uiLayers[ai];
+      if (!LAYER) return;
       const feats = (LAYER.gj?.features||[]);
       const rows = feats.map((f,i)=>({ id: f.id ?? (i+1), ...f.properties }));
       openAttrWindow(rows, { title: `Attributes • ${LAYER.name}` });
