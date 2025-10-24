@@ -40,6 +40,19 @@
   .btn{background:#1a2448;border:1px solid #2b3c6a;color:#fff;padding:6px 10px;border-radius:10px;cursor:pointer}
   .btn:hover{filter:brightness(1.05)}
 
+  /* Theme toggle inverted look (light↔dark) */
+  #themeToggle { transition: filter .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
+  :root[data-theme="light"] #themeToggle{
+    background:#0b1020 !important;
+    color:#ffffff !important;
+    border-color:#0b1020 !important;
+  }
+  :root[data-theme="dark"] #themeToggle{
+    background:#ffffff !important;
+    color:#0b1020 !important;
+    border-color:#ffffff !important;
+  }
+
   .wrap{display:grid;grid-template-columns:360px 1fr;gap:12px;min-height:calc(100vh - 50px);padding:12px}
   .side{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:12px}
   .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
@@ -122,21 +135,28 @@
   <script type="module">
     import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
 
-    // THEME TOGGLE
+    // THEME TOGGLE (one-click light <-> dark + inverted button)
     (function(){
       const root = document.documentElement;
-      const KEY = 'geostory-theme';
-      const btn = document.getElementById('themeToggle');
+      const KEY  = 'geostory-theme';
+      const btn  = document.getElementById('themeToggle');
+
+      const sysPref = () =>
+        window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+      function setTheme(t){
+        const theme = (t === 'dark' ? 'dark' : 'light');
+        root.setAttribute('data-theme', theme);
+        localStorage.setItem(KEY, theme);
+        btn.title = `Theme: ${theme}`;
+      }
+
       const saved = localStorage.getItem(KEY);
-      if(saved){ root.setAttribute('data-theme', saved); }
-      function label(){ btn.title = `Theme: ${root.getAttribute('data-theme') || 'auto'}`; }
-      label();
+      setTheme(saved || sysPref());
+
       btn.addEventListener('click', ()=>{
-        const cur = root.getAttribute('data-theme') || 'auto';
-        const next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
-        root.setAttribute('data-theme', next);
-        localStorage.setItem(KEY, next);
-        label();
+        const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+        setTheme(cur === 'dark' ? 'light' : 'dark');
       });
     })();
 
@@ -157,7 +177,7 @@
     const basemaps = {
       osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
       sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
-      topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'&copy; OpenTopoMap'})
+      topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
     };
     const map = L.map('map');
     (basemaps[state.basemap||'osm']).addTo(map);
