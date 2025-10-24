@@ -86,3 +86,17 @@ tbody tr:hover{ background:#0f141a; }
   position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index: 4000;
 }
 .map{ position:absolute; inset:0; }
+/* --- FIX για drag & resize στο viewer context --- */
+#attrwin {
+  pointer-events: auto !important;
+  z-index: 99999 !important;
+}
+
+#attrwin-header {
+  cursor: move !important;
+  pointer-events: auto !important;
+}
+
+#attrwin * {
+  user-select: auto !important;
+}
