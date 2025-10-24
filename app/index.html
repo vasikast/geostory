@@ -72,7 +72,7 @@
   .layer .meta{display:flex;flex-direction:column}
   .layer .meta small{color:var(--muted)}
   .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
-  #map{height:100%;min-height:70vh;background:#0a0f1e}
+  #map{position:relative;height:100%;min-height:70vh;background:#0a0f1e}
 
   /* Leaflet controls readable on both themes */
   .leaflet-control-attribution,
@@ -95,11 +95,41 @@
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
 
-  /* Measure controls: bigger, nicer */
-  .leaflet-control-measure a{
-    padding:8px 12px !important;
-    font-size:20px !important;
-    line-height:1;
+  /* Measure controls: όμορφα, κεντραρισμένα, “pill” */
+  .leaflet-control-measure {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    padding: 8px;
+    border-radius: 14px;
+    backdrop-filter: saturate(1.2) blur(6px);
+    background: color-mix(in oklab, var(--panel) 75%, transparent);
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+  }
+  .leaflet-control-measure a {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px !important;
+    min-width: 44px;
+    height: 40px;
+    font-size: 15px !important;
+    line-height: 1;
+    font-weight: 700;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    text-decoration: none;
+  }
+  .leaflet-control-measure a .ico { font-size: 18px; }
+  .leaflet-control-measure a:hover { filter: brightness(1.05); }
+  .leaflet-control-measure a.active { outline: 2px solid var(--acc); }
+  :root[data-theme="light"] .leaflet-control-measure a {
+    background: #0b1020; color:#fff; border-color:#0b1020;
+  }
+  :root[data-theme="dark"] .leaflet-control-measure a {
+    background: #fff; color:#0b1020; border-color:#fff;
   }
 
   /* Ghost preview animation (direction hint) */
@@ -124,7 +154,7 @@
     border-color:#ffffff !important;
   }
 
-  /* Inverted Leaflet popups per theme (για Identify) */
+  /* Inverted Leaflet popups per theme (για Identify & measure result) */
   :root[data-theme="light"] .leaflet-popup-content-wrapper,
   :root[data-theme="light"] .leaflet-popup-tip {
     background: #0b1020;
@@ -142,6 +172,22 @@
   .leaflet-popup-content td { padding:2px 6px; }
   .leaflet-popup-content .k { color: var(--muted); }
   .leaflet-popup-content .v { color: var(--text); }
+
+  /* HUD (live μέτρηση) δίπλα στον κέρσορα */
+  #measureHud{
+    position: absolute;
+    pointer-events: none;
+    z-index: 5000;
+    transform: translate(12px, 12px);
+    font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    padding: 6px 8px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    box-shadow: 0 6px 20px rgba(0,0,0,.22);
+    display: none;
+  }
+  :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
+  :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
 </style>
 </head>
 <body>
@@ -331,20 +377,16 @@
     const root = document.documentElement;
     const KEY  = 'geostory-theme';
     const btn  = document.getElementById('themeToggle');
-
     const sysPref = () =>
       window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-
     function setTheme(t){
       const theme = (t === 'dark' ? 'dark' : 'light');
       root.setAttribute('data-theme', theme);
       localStorage.setItem(KEY, theme);
       btn.title = `Theme: ${theme}`;
     }
-
     const saved = localStorage.getItem(KEY);
     setTheme(saved || sysPref());
-
     btn.addEventListener('click', ()=>{
       const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       setTheme(cur === 'dark' ? 'light' : 'dark');
@@ -493,7 +535,7 @@
         const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${k}</td><td style="padding:2px 6px;color:var(--text)">${v}</td></tr>`).join('');
         l.bindPopup(`<div style="font:13px system-ui"><strong>${layer.name}</strong><table>${rows}</table></div>`);
 
-        // Identify override: όταν είναι ενεργό για αυτό το layer
+        // Identify override
         l.on('click', (ev)=>{
           if(!(identify.active && identify.layerId === layer.id)) return;
           L.DomEvent.stop(ev);
@@ -534,7 +576,7 @@
       controls.appendChild(eye);
       controls.appendChild(tbl);
       controls.appendChild(sty);
-      controls.appendChild(idBtn);   // 👈 Identify
+      controls.appendChild(idBtn);
       controls.appendChild(del);
       row.appendChild(meta); row.appendChild(controls);
       elList.appendChild(row);
@@ -545,7 +587,7 @@
     const id='lyr_'+Math.random().toString(36).slice(2,9);
     const kind=detectKind(gj);
     const style = defaultStyle(kind);
-    const leaflet = buildLeaflet({ id, gj, name, style, kind }); // 👈 περνάμε id στο buildLeaflet
+    const leaflet = buildLeaflet({ id, gj, name, style, kind });
     leaflet.addTo(map);
     try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){}
     layers.push({ id,name,gj,leaflet,visible:true,kind,style,fields:fieldsFrom(gj) });
@@ -819,121 +861,131 @@
 
   // ---------- MEASURE TOOLS (top-right) ----------
   const measureLayer = L.featureGroup().addTo(map);
-  let measureMode = null; // 'distance' | 'area' | null
-  let sketch = null;      // final Leaflet layer (polyline/polygon)
-  let ghost = null;       // live preview following cursor
-  let pts = [];           // [[lng,lat], ...]
-  const readout = L.control({position:'bottomright'});
-  readout.onAdd = function(){
-    const div=L.DomUtil.create('div','leaflet-bar');
-    div.style.padding='6px 8px';
-    div.style.font='13px system-ui';
-    div.style.background='color-mix(in oklab, var(--panel) 85%, transparent)';
-    div.style.border='1px solid var(--line)';
-    div.style.borderRadius='8px';
-    div.style.display='none';
-    this._el=div; return div;
-  };
-  readout.addTo(map);
+  let measureMode = null;      // 'distance' | 'area' | null
+  let pts = [];                // [[lng,lat], ...]
+  let sketch = null;           // final (τρέχον σχέδιο μέχρι να τελειώσει)
+  let ghost = null;            // live preview που ακολουθεί τον κέρσορα
 
-  function setCursor(active){
-    const el = document.getElementById('map');
-    el.style.cursor = active ? 'crosshair' : '';
-  }
-  function formatLen(km){
-    return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`;
-  }
-  function formatArea(m2){
+  // HUD δίπλα στον κέρσορα
+  const mapEl = document.getElementById('map');
+  const hud = document.createElement('div');
+  hud.id = 'measureHud';
+  mapEl.appendChild(hud);
+
+  // helpers
+  function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
+  function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
+  function areaFmt(m2){
     if(m2 >= 1e6) return `${(m2/1e6).toFixed(2)} km²`;
     if(m2 >= 1e4) return `${(m2/1e4).toFixed(2)} ha`;
     return `${m2.toFixed(0)} m²`;
   }
-
-  function clearGhost(){
-    if(ghost){ measureLayer.removeLayer(ghost); ghost=null; }
+  function clearGhost(){ if(ghost){ measureLayer.removeLayer(ghost); ghost=null; } }
+  function clearSketch(){ if(sketch){ measureLayer.removeLayer(sketch); sketch=null; } }
+  function stopHUD(){ hud.style.display='none'; hud.textContent=''; }
+  function moveHUD(e){
+    const rect = mapEl.getBoundingClientRect();
+    hud.style.left = (e.originalEvent.clientX - rect.left) + 'px';
+    hud.style.top  = (e.originalEvent.clientY - rect.top) + 'px';
   }
+
+  // live preview
   function updateGhost(latlng){
     if(!measureMode || pts.length===0) return;
     clearGhost();
     const path = [...pts.map(([lng,lat])=>[lat,lng]), [latlng.lat, latlng.lng]];
     if(measureMode==='distance'){
       ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line' });
-    }else{
-      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line' });
-    }
-    ghost.addTo(measureLayer);
-
-    if(measureMode==='distance'){
       const line = turf.lineString([...pts, [latlng.lng, latlng.lat]]);
       const lenKm = turf.length(line, {units:'kilometers'});
-      readout._el.textContent = `Length: ${formatLen(lenKm)}  •  (Double-click to finish, Esc to cancel)`;
-      readout._el.style.display='block';
-    }else if(measureMode==='area' && pts.length>=2){
-      const poly = turf.polygon([[...pts, [latlng.lng, latlng.lat], pts[0]]]);
-      const a = turf.area(poly);
-      readout._el.textContent = `Area: ${formatArea(a)}  •  (Double-click to finish, Esc to cancel)`;
-      readout._el.style.display='block';
+      hud.textContent = `Length: ${kmFmt(lenKm)}`;
+      hud.style.display='block';
+    }else{
+      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line' });
+      if(pts.length>=2){
+        const poly = turf.polygon([[...pts, [latlng.lng, latlng.lat], pts[0]]]);
+        const a = turf.area(poly);
+        hud.textContent = `Area: ${areaFmt(a)}`;
+        hud.style.display='block';
+      }else{
+        hud.style.display='none';
+      }
     }
+    ghost.addTo(measureLayer);
   }
 
+  // τρέχον σχέδιο (καθώς κλικάρουμε)
   function updateSketch(){
     if(!pts.length) return;
-    if(sketch) measureLayer.removeLayer(sketch);
+    clearSketch();
     if(measureMode==='distance'){
       sketch = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3});
-      const line = turf.lineString(pts);
-      const lenKm = turf.length(line, {units:'kilometers'});
-      readout._el.textContent = `Length: ${formatLen(lenKm)}`;
-      readout._el.style.display='block';
     }else if(measureMode==='area'){
       sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1});
-      if(pts.length>=3){
-        const poly = turf.polygon([[...pts, pts[0]]]);
-        const a = turf.area(poly);
-        readout._el.textContent = `Area: ${formatArea(a)}`;
-        readout._el.style.display='block';
-      }
     }
     sketch && sketch.addTo(measureLayer);
   }
+
   function startMeasure(mode){
-    cancelMeasure();
+    cancelMeasure();               // reset
     measureMode = mode;
+    pts = [];
     setCursor(true);
     map.doubleClickZoom.disable();
-    readout._el.textContent = (mode==='distance' ? 'Click to add points • Double-click to finish • Esc to cancel' : 'Click to add vertices • Double-click to finish • Esc to cancel');
-    readout._el.style.display='block';
+    hud.style.display='block';
     map.on('mousemove', onMouseMove);
   }
   function finishMeasure(){
+    if(!pts.length){ cancelMeasure(); return; }
+
+    if(measureMode==='distance' && pts.length>=2){
+      const line = turf.lineString(pts);
+      const lenKm = turf.length(line, {units:'kilometers'});
+      const mid = turf.along(line, lenKm/2, {units:'kilometers'}).geometry.coordinates; // [lng,lat]
+      L.popup({ closeButton:true })
+        .setLatLng([mid[1], mid[0]])
+        .setContent(`<strong>Length</strong><br>${kmFmt(lenKm)}`)
+        .openOn(map);
+    }else if(measureMode==='area' && pts.length>=3){
+      const poly = turf.polygon([[...pts, pts[0]]]);
+      const a = turf.area(poly);
+      const c = turf.centroid(poly).geometry.coordinates; // [lng,lat]
+      L.popup({ closeButton:true })
+        .setLatLng([c[1], c[0]])
+        .setContent(`<strong>Area</strong><br>${areaFmt(a)}`)
+        .openOn(map);
+    }
+
+    // αφήνουμε το τελικό sketch πάνω στο χάρτη μέχρι να γίνει Clear
+    stopHUD();
     setCursor(false);
     measureMode = null;
     pts = [];
     clearGhost();
-    sketch = null;
     map.doubleClickZoom.enable();
-    readout._el.style.display='none';
     map.off('mousemove', onMouseMove);
   }
   function cancelMeasure(){
     pts = [];
     clearGhost();
-    if(sketch){ measureLayer.removeLayer(sketch); sketch=null; }
+    clearSketch();
+    stopHUD();
     setCursor(false);
     measureMode = null;
     map.doubleClickZoom.enable();
-    readout._el.style.display='none';
     map.off('mousemove', onMouseMove);
   }
   function clearAllMeasurements(){
     cancelMeasure();
     measureLayer.clearLayers();
-  }
-  function onMouseMove(e){
-    if(!measureMode) return;
-    updateGhost(e.latlng);
+    map.closePopup();
   }
 
+  function onMouseMove(e){
+    if(!measureMode) return;
+    moveHUD(e);
+    updateGhost(e.latlng);
+  }
   map.on('click', (e)=>{
     if(!measureMode) return;
     const ll = e.latlng; pts.push([ll.lng, ll.lat]);
@@ -949,23 +1001,29 @@
     if(e.key==='Escape') cancelMeasure();
   });
 
+  // Custom control buttons (top-right) — όμορφα + centered
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
       const container = L.DomUtil.create('div','leaflet-control leaflet-control-measure leaflet-bar');
-      const mkBtn = (title, html) => {
+      const mkBtn = (label, iconTxt) => {
         const a = L.DomUtil.create('a','',container);
-        a.href='#'; a.title=title; a.innerHTML=html;
-        a.style.padding='8px 12px'; a.style.fontSize='20px';
+        a.href='#';
+        a.innerHTML = `<span class="ico">${iconTxt}</span><span>${label}</span>`;
         return a;
       };
-      const btnDist  = mkBtn('Measure distance','📏');
-      const btnArea  = mkBtn('Measure area','▱');
-      const btnClear = mkBtn('Clear measurements','🧹');
+      const btnDist  = mkBtn('Line','📏');
+      const btnArea  = mkBtn('Area','▱');
+      const btnClear = mkBtn('Clear','🧹');
 
-      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('distance'); });
-      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); startMeasure('area'); });
-      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); clearAllMeasurements(); });
+      function setActive(b){
+        [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
+        b && b.classList.add('active');
+      }
+
+      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnDist); startMeasure('distance'); });
+      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnArea); startMeasure('area'); });
+      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(null); clearAllMeasurements(); });
 
       L.DomEvent.disableClickPropagation(container);
       return container;
