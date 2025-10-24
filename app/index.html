@@ -100,6 +100,19 @@
     border-radius:10px;
     font-weight:600;
   }
+
+  /* Theme toggle inverted look (light↔dark) */
+  #themeToggle { transition: filter .15s ease, background .15s ease, color .15s ease, border-color .15s ease; }
+  :root[data-theme="light"] #themeToggle{
+    background:#0b1020 !important;
+    color:#ffffff !important;
+    border-color:#0b1020 !important;
+  }
+  :root[data-theme="dark"] #themeToggle{
+    background:#ffffff !important;
+    color:#0b1020 !important;
+    border-color:#ffffff !important;
+  }
 </style>
 </head>
 <body>
@@ -284,21 +297,28 @@
   </script>
 
 <script>
-  // ---------- THEME TOGGLE ----------
+  // ---------- THEME TOGGLE (one-click, light <-> dark) ----------
   (function(){
     const root = document.documentElement;
-    const KEY = 'geostory-theme';
-    const btn = document.getElementById('themeToggle');
+    const KEY  = 'geostory-theme';
+    const btn  = document.getElementById('themeToggle');
+
+    const sysPref = () =>
+      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+
+    function setTheme(t){
+      const theme = (t === 'dark' ? 'dark' : 'light');
+      root.setAttribute('data-theme', theme);
+      localStorage.setItem(KEY, theme);
+      btn.title = `Theme: ${theme}`;
+    }
+
     const saved = localStorage.getItem(KEY);
-    if(saved){ root.setAttribute('data-theme', saved); }
-    function label(){ btn.title = `Theme: ${root.getAttribute('data-theme') || 'auto'}`; }
-    label();
+    setTheme(saved || sysPref());
+
     btn.addEventListener('click', ()=>{
-      const cur = root.getAttribute('data-theme') || 'auto';
-      const next = cur === 'auto' ? 'light' : cur === 'light' ? 'dark' : 'auto';
-      root.setAttribute('data-theme', next);
-      localStorage.setItem(KEY, next);
-      label();
+      const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+      setTheme(cur === 'dark' ? 'light' : 'dark');
     });
   })();
 
