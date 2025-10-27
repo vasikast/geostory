@@ -29,32 +29,41 @@ app.set("trust proxy", 1); // behind proxy (Render)
 app.use(express.json({ limit: JSON_LIMIT }));
 app.use(cors());
 
-// Basic security headers
+// ---- harden: don't crash process on transient errors
+process.on("unhandledRejection", (reason) => {
+  console.error("UnhandledRejection:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("UncaughtException:", err);
+});
+
+// Basic security headers (+ CSP for tiles/CDNs you use)
 app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
-  // Mild CSP that works for SPA; tighten once we lock external hosts
-res.setHeader(
-  "Content-Security-Policy",
-  [
-    "default-src 'self'",
-    // Leaflet από unpkg
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com",
-    "style-src  'self' 'unsafe-inline' https://unpkg.com",
-    // Tiles (εικόνες χαρτών) από OSM/Esri/OpenTopo + data/blob
-    "img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://a.tile.opentopomap.org https://b.tile.opentopomap.org https://c.tile.opentopomap.org",
-    // σε περίπτωση που φορτωθούν assets/woff από CDN
-    "font-src 'self' data: https:",
-    // για XHR/fetch (GeoJSON, API, κ.λπ.)
-    "connect-src 'self' https:",
-    // αν χρησιμοποιήσεις web workers τώρα ή στο μέλλον
-    "worker-src 'self' blob:",
-    "frame-ancestors 'self'",
-    "base-uri 'self'",
-    "form-action 'self'",
-  ].join("; ")
-);
+
+  // Mild CSP that works for SPA (expand domains if you add more CDNs/providers)
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      // Leaflet & any inline handlers we currently need
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com",
+      "style-src  'self' 'unsafe-inline' https://unpkg.com",
+      // Tiles (OSM, Esri, OpenTopoMap)
+      "img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://a.tile.opentopomap.org https://b.tile.opentopomap.org https://c.tile.opentopomap.org",
+      // fonts & blobs
+      "font-src 'self' data: https:",
+      // XHR/Fetch (API + https external when needed)
+      "connect-src 'self' https:",
+      // workers (if you add any in the future)
+      "worker-src 'self' blob:",
+      "frame-ancestors 'self'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; ")
+  );
   next();
 });
 
@@ -67,77 +76,112 @@ app.use((req, res, next) => {
   next();
 });
 
-// ===== SQLite init
-let db;
-async function initDb() {
+// ===== SQLite init (singleton & resilient)
+let db;               // actual connection
+let dbPromise = null; // singleton promise to avoid races
+
+async function initDbOnce() {
+  if (db) return db;
+  if (dbPromise) return dbPromise;
+
   const dbPath = path.join(__dirname, "geostory.db");
-  const conn = await open({ filename: dbPath, driver: sqlite3.Database });
-  // Pragmas for concurrency & integrity
-  await conn.exec(`
-    PRAGMA journal_mode=WAL;
-    PRAGMA synchronous=NORMAL;
-    PRAGMA foreign_keys=ON;
-    PRAGMA temp_store=MEMORY;
-    PRAGMA mmap_size=268435456; -- 256MB
-    PRAGMA busy_timeout=3000;
-  `);
-  await conn.exec(`
-    CREATE TABLE IF NOT EXISTS stories (
-      id TEXT PRIMARY KEY,
-      created_at INTEGER NOT NULL,
-      expires_at INTEGER,
-      title TEXT,
-      state_json TEXT NOT NULL
-    );
-    CREATE INDEX IF NOT EXISTS idx_expires ON stories(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_created ON stories(created_at);
-  `);
-  return conn;
+  dbPromise = open({ filename: dbPath, driver: sqlite3.Database })
+    .then(async (conn) => {
+      // Pragmas for concurrency & integrity
+      await conn.exec(`
+        PRAGMA journal_mode=WAL;
+        PRAGMA synchronous=NORMAL;
+        PRAGMA foreign_keys=ON;
+        PRAGMA temp_store=MEMORY;
+        PRAGMA mmap_size=268435456;
+        PRAGMA busy_timeout=10000; -- 10s
+      `);
+      await conn.exec(`
+        CREATE TABLE IF NOT EXISTS stories (
+          id TEXT PRIMARY KEY,
+          created_at INTEGER NOT NULL,
+          expires_at INTEGER,
+          title TEXT,
+          state_json TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_expires ON stories(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_created ON stories(created_at);
+      `);
+      db = conn;
+      return db;
+    })
+    .catch((e) => {
+      dbPromise = null;
+      throw e;
+    });
+
+  return dbPromise;
 }
+
 const now = () => Math.floor(Date.now() / 1000);
 const slug = (n = 7) => crypto.randomBytes(16).toString("base64url").slice(0, n);
 
-// Ensure DB ready for each request (cheap check)
-app.use(async (_req, _res, next) => {
+// Helper: small retry wrapper for SQLITE_BUSY
+async function runWithRetry(sql, params = [], retries = 2, name = "sql") {
+  await initDbOnce();
   try {
-    if (!db) db = await initDb();
-    next();
+    return await db.run(sql, params);
   } catch (e) {
-    next(e);
+    if (e && e.code === "SQLITE_BUSY" && retries > 0) {
+      const delay = 200 + Math.floor(Math.random() * 200);
+      console.warn(`[${name}] SQLITE_BUSY — retrying in ${delay}ms…`);
+      await new Promise((r) => setTimeout(r, delay));
+      return runWithRetry(sql, params, retries - 1, name);
+    }
+    throw e;
   }
-});
+}
 
-// Helper: is request from same machine?
+// ---- helper: is request from same machine?
 function isLoopback(req) {
   const ip = (req.ip || "").replace("::ffff:", "");
   return ip === "127.0.0.1" || ip === "::1";
 }
 
-// Guard for Editor & Create API (local only unless ALLOW_EDITOR_NETWORK=1)
+// ---- guard για Editor & API (μόνο τοπικά, εκτός αν ALLOW_EDITOR_NETWORK=1)
 function editorGuard(req, res, next) {
   if (ALLOW_EDITOR_NETWORK || isLoopback(req)) return next();
   return res.status(403).send("Editor/API is accessible only from this computer.");
 }
 
-// ===== Housekeeping (startup + daily)
-async function purgeExpired() {
+// ===== Housekeeping (startup + daily) with retry/backoff
+async function purgeExpired(retries = 3) {
   try {
+    await initDbOnce();
     const r = await db.run(
       `DELETE FROM stories WHERE expires_at IS NOT NULL AND expires_at < ?`,
       [now()]
     );
     if (r?.changes) console.log(`🧹 Cleaned expired stories: ${r.changes}`);
   } catch (e) {
-    console.warn("Housekeeping error:", e?.message);
+    if (e && e.code === "SQLITE_BUSY" && retries > 0) {
+      const backoff = (4 - retries) * 300 + Math.floor(Math.random() * 200);
+      console.warn(`Housekeeping busy, retrying in ${backoff}ms…`);
+      await new Promise((res) => setTimeout(res, backoff));
+      return purgeExpired(retries - 1);
+    }
+    console.warn("Housekeeping error:", e?.message || e);
   }
 }
+
+// Startup DB warm-up & housekeeping
 (async () => {
-  db = await initDb();
-  await purgeExpired();
-  setInterval(purgeExpired, 24 * 3600 * 1000);
+  try {
+    await initDbOnce();
+    await purgeExpired();
+    setInterval(purgeExpired, 24 * 3600 * 1000);
+  } catch (e) {
+    console.error("DB init failed:", e);
+    process.exit(1);
+  }
 })();
 
-// Health
+// Health (light; no heavy DB ops)
 app.get("/health", (_req, res) =>
   res.json({ ok: true, env: NODE_ENV, time: new Date().toISOString() })
 );
@@ -164,13 +208,11 @@ app.get("/", editorGuard, (_req, res) => {
   res.sendFile(path.join(__dirname, "app", "index.html"));
 });
 
-// 2) Viewer assets (public)
-// Long cache for static assets (fingerprinted files recommended)
+// 2) Viewer assets (public) — long cache for static assets (avoid for html)
 app.use(
   "/public",
   express.static(path.join(__dirname, "public"), {
     setHeaders: (res, filePath) => {
-      // Heuristic: cache long for assets except viewer.html shell
       if (filePath.endsWith(".html")) {
         res.setHeader("Cache-Control", "no-store");
       } else {
@@ -188,6 +230,8 @@ app.get("/s/:id", (_req, res) => {
 // ===== API (create/read)
 app.post("/api/stories", editorGuard, async (req, res) => {
   try {
+    await initDbOnce();
+
     const { state, ttlDays = 7 } = req.body || {};
 
     // Basic shape
@@ -226,10 +270,12 @@ app.post("/api/stories", editorGuard, async (req, res) => {
     const created = now();
     const expires = created + ttlNum * 86400;
 
-    await db.run(
+    await runWithRetry(
       `INSERT INTO stories (id, created_at, expires_at, title, state_json)
        VALUES (?, ?, ?, ?, ?)`,
-      [id, created, expires, title, raw]
+      [id, created, expires, title, raw],
+      3,
+      "insert-story"
     );
 
     // Build absolute URL
@@ -240,6 +286,10 @@ app.post("/api/stories", editorGuard, async (req, res) => {
 
     return res.json({ id, url: urlPath, absolute_url: absUrl, expires_at: expires });
   } catch (err) {
+    if (err && err.code === "SQLITE_BUSY") {
+      // Signal transient issue; client can retry
+      return res.status(503).json({ error: "Database is busy, please retry." });
+    }
     console.error("POST /api/stories error:", err);
     return res.status(500).json({ error: "Server error" });
   }
@@ -247,6 +297,8 @@ app.post("/api/stories", editorGuard, async (req, res) => {
 
 app.get("/api/stories/:id", async (req, res) => {
   try {
+    await initDbOnce();
+
     const { id } = req.params;
     if (!/^[A-Za-z0-9_-]{5,20}$/.test(id)) {
       return res.status(400).json({ error: "Invalid id" });
@@ -259,6 +311,9 @@ app.get("/api/stories/:id", async (req, res) => {
     res.setHeader("Cache-Control", "public, max-age=900"); // 15min
     return res.json({ id: row.id, title: row.title, state: JSON.parse(row.state_json) });
   } catch (err) {
+    if (err && err.code === "SQLITE_BUSY") {
+      return res.status(503).json({ error: "Database is busy, please retry." });
+    }
     console.error("GET /api/stories/:id error:", err);
     return res.status(500).json({ error: "Server error" });
   }
@@ -269,8 +324,7 @@ app.use((req, res) => {
   res.status(404).json({ error: "Not found" });
 });
 
-// ===== Central error handler
-// (avoid leaking stack traces in production)
+// ===== Central error handler (avoid leaking stack traces in production)
 app.use((err, _req, res, _next) => {
   console.error("Unhandled error:", err);
   res.status(500).json({ error: "Internal server error" });
