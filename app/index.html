@@ -29,17 +29,21 @@
     --bg:#f7f8fc; --panel:#ffffff; --card:#ffffff; --text:#0b1020;
     --muted:#5a678a; --line:#e6e8f2; --acc:#3b82f6; --acc2:#10b981;
     --chip:#eef2ff; --chip-border:#dbe5ff;
+    /* measure */
+    --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020;
   }
   :root[data-theme="dark"]{
     --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
     --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
     --chip:#12215c; --chip-border:#2b3c6a;
+    --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
   }
   @media (prefers-color-scheme: dark){
     :root[data-theme="auto"]{
       --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
       --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
       --chip:#12215c; --chip-border:#2b3c6a;
+      --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
     }
   }
 
@@ -95,7 +99,7 @@
   footer{grid-column:1/-1;text-align:center;color:var(--muted);font-size:12px;padding:4px 0}
   @media (max-width: 1000px){ .wrap{grid-template-columns:1fr} .style-panel{left:16px;right:16px;width:auto} }
 
-  /* Measure controls: icon-only, “pill”, yellow theme */
+  /* Measure controls */
   .leaflet-control-measure {
     display: flex;
     gap: 8px;
@@ -130,9 +134,6 @@
     font-size: 20px; line-height: 1;
     width: 100%; height: 100%;
   }
-  /* Yellow palette */
-  :root { --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020; }
-  :root[data-theme="dark"] { --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020; }
 
   /* Ghost preview animation */
   .measure-ghost-line{ stroke-dasharray:6 6; animation: dash 1s linear infinite; }
@@ -169,34 +170,24 @@
   :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
   :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
 
-  /* ---------- THEME OVERRIDES FOR ATTRIBUTE WINDOW ---------- */
-  /* Σκούρο στο dark, λευκό στο light */
-  #attrwin.win{
-    background: var(--panel);
-    border: 1px solid var(--line);
-    color: var(--text);
-  }
+  /* -------- Attribute Window theme overrides -------- */
+  /* Κρατάμε ίδια κλάση (.win) αλλά δίνουμε dark/light skins */
+  #attrwin.win { background: var(--panel); color: var(--text); border:1px solid var(--line); }
   #attrwin .win-header,
-  #attrwin .win-toolbar{
-    background: color-mix(in oklab, var(--panel) 85%, transparent);
-    border-bottom: 1px solid var(--line);
-  }
-  #attrwin .win-title{ color: var(--text); }
-  #attrwin .win-actions .icon-btn{ background: color-mix(in oklab, var(--panel) 92%, transparent); border:1px solid var(--line); color: var(--text); }
-  #attrwin .win-actions .icon-btn.danger{ color:#d15252; }
-  #attrwin .win-body{ background: var(--panel); }
-
-  #attrwin table{ color: var(--text); }
-  #attrwin thead th{
-    background: color-mix(in oklab, var(--panel) 85%, transparent);
-    border-bottom: 1px solid var(--line);
-  }
+  #attrwin .win-toolbar { background: color-mix(in oklab, var(--panel) 85%, transparent); border-bottom: 1px solid var(--line); }
+  #attrwin .win-title { color: var(--text); }
+  #attrwin .icon-btn { background: var(--card); color: var(--text); border:1px solid var(--line); }
+  #attrwin .icon-btn:hover { filter: brightness(1.05); }
+  #attrwin .icon-btn.danger { color:#b91c1c; }
+  #attrwin .win-body { background: var(--panel); }
+  #attrwin table { color: var(--text); }
+  #attrwin thead th { background: color-mix(in oklab, var(--panel) 80%, transparent); border-bottom: 1px solid var(--line); }
   #attrwin tbody tr:nth-child(even){ background: color-mix(in oklab, var(--panel) 92%, transparent); }
-  #attrwin tbody tr:hover{ background: color-mix(in oklab, var(--panel) 86%, transparent); }
+  #attrwin tbody tr:hover{ background: color-mix(in oklab, var(--panel) 75%, transparent); }
+  #attrwin .win-resize-handle { background: var(--line); }
 
-  /* Κουμπιά μέσα στο attrwin */
-  #attrwin .btn.btn-sm{ background:#1a2448; border:1px solid #2b3c6a; color:#fff; }
-  :root[data-theme="light"] #attrwin .btn.btn-sm{ background:#eef2ff; border:1px solid #dbe5ff; color:#0b1020; }
+  /* Απόκρυψη κουμπιού ελαχιστοποίησης χωρίς να «λείπει» από το DOM */
+  #attrwin-min{ display:none !important; }
 </style>
 </head>
 <body>
@@ -344,12 +335,13 @@
     </div>
   </div>
 
-  <!-- Attribute Table Window (draggable/resizable/max/close) — χωρίς ελαχιστοποίηση -->
+  <!-- Attribute Table Window (draggable/resizable/min/max/close) -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
       <div class="win-actions">
-        <!-- αφαιρέθηκε το κουμπί ελαχιστοποίησης -->
+        <!-- Κρατάμε το min για να μη σπάει το attrwin.js, αλλά το κρύβουμε με CSS -->
+        <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize" tabindex="-1">—</button>
         <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
         <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
@@ -390,8 +382,8 @@
       localStorage.setItem(KEY, theme);
       btn.title = `Theme: ${theme}`;
     }
-    const saved = localStorage.getItem(KEY);
-    setTheme(saved || 'dark'); // πάντα ξεκινά dark αν δεν υπάρχει αποθηκευμένη επιλογή
+    const saved = localStorage.getItem(KEY) || 'dark'; // default dark
+    setTheme(saved);
     btn.addEventListener('click', ()=>{
       const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       setTheme(cur === 'dark' ? 'light' : 'dark');
@@ -430,7 +422,6 @@
     return f ? Object.keys(f.properties) : [];
   }
 
-  // Palettes
   const PALETTES = {
     category10: ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"],
     set3: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
@@ -626,7 +617,7 @@
     const tables = gpkg.getFeatureTables();
     if(!tables.length){ alert('Δεν βρέθηκαν feature layers στο GeoPackage.'); return; }
     for(const t of tables){
-      const gj = gpkg.exportGeoJSON(t);
+      const gj = gpkg.exportGeoJSON(t); // FeatureCollection
       addGeoJSON(`${file.name} — ${t}`, gj);
     }
   }
@@ -879,22 +870,20 @@
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  /* Pan μόνο με ροδέλα όταν μετράς */
+  /* Pan μόνο με ροδέλα όσο μετράς */
   let isMeasuring = false;
-
   function enablePanOnlyWithMiddleButton(){
     if(!mapEl.__measureMouseDownBound){
       mapEl.addEventListener('mousedown', (e)=>{
         if(!isMeasuring) return;
         if(e.button === 1){
-          map.dragging.enable();
+          map.dragging.enable();   // pan όσο κρατάς πατημένη τη ροδέλα
         } else {
-          map.dragging.disable();
+          map.dragging.disable();  // κόψε pan για αριστερό/δεξί όσο μετράς
         }
       }, true);
       mapEl.__measureMouseDownBound = true;
     }
-
     if(!mapEl.__measureMouseUpBound){
       mapEl.addEventListener('mouseup', ()=>{
         if(!isMeasuring) return;
@@ -902,7 +891,6 @@
       }, true);
       mapEl.__measureMouseUpBound = true;
     }
-
     if(!mapEl.__measureCtxMenuBound){
       mapEl.addEventListener('contextmenu', (e)=>{
         if(!isMeasuring) return;
@@ -969,25 +957,24 @@
   }
 
   function startMeasure(mode){
-    cancelMeasure();
+    cancelMeasure();               // reset
     measureMode = mode;
     pts = [];
     setCursor(true);
     finishing = false;
     hud.style.display='block';
     isMeasuring = true;
-    map.dragging.disable();
+    map.dragging.disable();        // κόψε pan με αριστερό όσο μετράς
     map.on('mousemove', onMouseMove);
   }
 
-  // CLICK (όχι hover) για να ξαναδείχνει το popup της μέτρησης
-  function bindResultInteraction(layer, latlng, content){
+  // ΔΕΝ ανοίγουμε popup σε hover — μόνο με click
+  function bindResultClick(layer, latlng, content){
     layer._measure = { latlng, content };
-    layer.on('click', ()=>{
-      const m = layer._measure;
-      if(!m) return;
+    layer.on('click', (ev)=>{
+      const m = layer._measure; if(!m) return;
       L.popup({ closeButton:true })
-        .setLatLng(m.latlng)
+        .setLatLng(ev.latlng || m.latlng)
         .setContent(m.content)
         .openOn(map);
     });
@@ -1023,11 +1010,8 @@
     clearSketch();
     if(resultLayer){
       resultLayer.addTo(measureLayer);
-      L.popup({ closeButton:true })
-        .setLatLng(latlngForPopup)
-        .setContent(html)
-        .openOn(map);
-      bindResultInteraction(resultLayer, latlngForPopup, html);
+      // Δεν ανοίγουμε τώρα popup αυτόματα — θα ανοίγει με click:
+      bindResultClick(resultLayer, latlngForPopup, html);
     }
 
     stopHUD();
