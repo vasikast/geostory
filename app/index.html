@@ -29,21 +29,17 @@
     --bg:#f7f8fc; --panel:#ffffff; --card:#ffffff; --text:#0b1020;
     --muted:#5a678a; --line:#e6e8f2; --acc:#3b82f6; --acc2:#10b981;
     --chip:#eef2ff; --chip-border:#dbe5ff;
-    /* measure */
-    --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020;
   }
   :root[data-theme="dark"]{
     --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
     --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
     --chip:#12215c; --chip-border:#2b3c6a;
-    --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
   }
   @media (prefers-color-scheme: dark){
     :root[data-theme="auto"]{
       --bg:#0b1020; --panel:#0f1630; --card:#0d1430; --text:#e8ecff;
       --muted:#9fb0e0; --line:#24324f; --acc:#6aa6ff; --acc2:#00d3a7;
       --chip:#12215c; --chip-border:#2b3c6a;
-      --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020;
     }
   }
 
@@ -101,39 +97,25 @@
 
   /* Measure controls */
   .leaflet-control-measure {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    padding: 8px;
-    border-radius: 14px;
-    backdrop-filter: saturate(1.2) blur(6px);
+    display: flex; gap: 8px; align-items: center; padding: 8px;
+    border-radius: 14px; backdrop-filter: saturate(1.2) blur(6px);
     background: color-mix(in oklab, var(--panel) 75%, transparent);
-    border: 1px solid var(--line);
-    box-shadow: 0 6px 20px rgba(0,0,0,.15);
+    border: 1px solid var(--line); box-shadow: 0 6px 20px rgba(0,0,0,.15);
   }
   .leaflet-control-measure a {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 44px;
-    height: 44px;
-    padding: 0 !important;
-    border-radius: 10px;
-    border: 1px solid var(--measure-border);
-    text-decoration: none;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    width: 44px; height: 44px; padding: 0 !important; border-radius: 10px;
+    border: 1px solid var(--measure-border); text-decoration: none;
     box-shadow: 0 2px 10px rgba(0,0,0,.08);
     transition: transform .08s ease, filter .15s ease, box-shadow .15s ease;
-    background: var(--measure-bg);
-    color: var(--measure-fg);
+    background: var(--measure-bg); color: var(--measure-fg);
   }
   .leaflet-control-measure a:hover { filter: brightness(1.05); }
   .leaflet-control-measure a:active { transform: translateY(1px) scale(0.98); }
   .leaflet-control-measure a.active { outline: 2px solid var(--acc); }
-  .leaflet-control-measure a .ico {
-    display: flex; align-items: center; justify-content: center;
-    font-size: 20px; line-height: 1;
-    width: 100%; height: 100%;
-  }
+  .leaflet-control-measure a .ico { display:flex; align-items:center; justify-content:center; font-size:20px; line-height:1; width:100%; height:100%; }
+  :root { --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020; }
+  :root[data-theme="dark"] { --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020; }
 
   /* Ghost preview animation */
   .measure-ghost-line{ stroke-dasharray:6 6; animation: dash 1s linear infinite; }
@@ -159,7 +141,7 @@
   .leaflet-popup-content .k { color: var(--muted); }
   .leaflet-popup-content .v { color: var(--text); }
 
-  /* HUD (live μέτρηση) δίπλα στον κέρσορα */
+  /* HUD (live μέτρηση) */
   #measureHud{
     position: absolute; pointer-events: none; z-index: 5000;
     transform: translate(12px, 12px);
@@ -170,24 +152,45 @@
   :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
   :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
 
-  /* -------- Attribute Window theme overrides -------- */
-  /* Κρατάμε ίδια κλάση (.win) αλλά δίνουμε dark/light skins */
-  #attrwin.win { background: var(--panel); color: var(--text); border:1px solid var(--line); }
-  #attrwin .win-header,
-  #attrwin .win-toolbar { background: color-mix(in oklab, var(--panel) 85%, transparent); border-bottom: 1px solid var(--line); }
-  #attrwin .win-title { color: var(--text); }
-  #attrwin .icon-btn { background: var(--card); color: var(--text); border:1px solid var(--line); }
-  #attrwin .icon-btn:hover { filter: brightness(1.05); }
-  #attrwin .icon-btn.danger { color:#b91c1c; }
-  #attrwin .win-body { background: var(--panel); }
-  #attrwin table { color: var(--text); }
-  #attrwin thead th { background: color-mix(in oklab, var(--panel) 80%, transparent); border-bottom: 1px solid var(--line); }
-  #attrwin tbody tr:nth-child(even){ background: color-mix(in oklab, var(--panel) 92%, transparent); }
-  #attrwin tbody tr:hover{ background: color-mix(in oklab, var(--panel) 75%, transparent); }
-  #attrwin .win-resize-handle { background: var(--line); }
+  /* ---- Window theme overrides (Attribute/Share) follow page theme ---- */
+  :root[data-theme="dark"] .win{
+    background:#0f1630; color:#e8ecff; border-color:#24324f;
+  }
+  :root[data-theme="dark"] .win-header{ background:#0b1228; border-bottom-color:#24324f; }
+  :root[data-theme="dark"] .win-toolbar{ background:rgba(255,255,255,0.03); border-bottom-color:#24324f; }
+  :root[data-theme="dark"] .win-body{ background:#0a0f1e; }
+  :root[data-theme="dark"] .icon-btn{ color:#e8ecff; border-color:#24324f; }
+  :root[data-theme="dark"] .icon-btn:hover{ border-color:#6aa6ff; }
+  :root[data-theme="dark"] .btn{ background:#1a2448; color:#e8ecff; border-color:#24324f; }
+  :root[data-theme="dark"] .btn:hover{ border-color:#6aa6ff; }
+  :root[data-theme="dark"] .win-toolbar input[type="search"]{
+    background:#0a0f1e; color:#e8ecff; border-color:#24324f;
+  }
+  :root[data-theme="dark"] thead th{ background:#0b1228; border-bottom-color:#24324f; }
+  :root[data-theme="dark"] tbody td{ border-bottom-color:#19233d; }
+  :root[data-theme="dark"] tbody tr:hover{ background:#0f1630; }
 
-  /* Απόκρυψη κουμπιού ελαχιστοποίησης χωρίς να «λείπει» από το DOM */
-  #attrwin-min{ display:none !important; }
+  :root[data-theme="light"] .win{
+    background:#ffffff; color:#0b1020; border-color:#e6e8f2;
+  }
+  :root[data-theme="light"] .win-header{ background:#f5f7ff; border-bottom-color:#e6e8f2; }
+  :root[data-theme="light"] .win-toolbar{ background:rgba(0,0,0,0.02); border-bottom-color:#e6e8f2; }
+  :root[data-theme="light"] .win-body{ background:#ffffff; }
+  :root[data-theme="light"] .icon-btn{ color:#0b1020; border-color:#e6e8f2; }
+  :root[data-theme="light"] .icon-btn:hover{ border-color:#3b82f6; }
+  :root[data-theme="light"] .btn{ background:#f2f5ff; color:#0b1020; border-color:#e6e8f2; }
+  :root[data-theme="light"] .btn:hover{ border-color:#3b82f6; }
+  :root[data-theme="light"] .win-toolbar input[type="search"]{
+    background:#ffffff; color:#0b1020; border-color:#e6e8f2;
+  }
+  :root[data-theme="light"] thead th{ background:#f5f7ff; border-bottom-color:#e6e8f2; }
+  :root[data-theme="light"] tbody td{ border-bottom-color:#eef1f7; }
+  :root[data-theme="light"] tbody tr:hover{ background:#f7f9ff; }
+
+  /* Make sure the windows don't steal map gestures */
+  #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
+  #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
+  #attrwin *, #sharewin * { user-select: auto !important; }
 </style>
 </head>
 <body>
@@ -247,7 +250,7 @@
     <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Identify • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
   </div>
 
-  <!-- STYLE PANEL (per layer) -->
+  <!-- STYLE PANEL -->
   <div id="stylePanel" class="style-panel">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
@@ -335,13 +338,12 @@
     </div>
   </div>
 
-  <!-- Attribute Table Window (draggable/resizable/min/max/close) -->
+  <!-- Attribute Table Window (χωρίς ελαχιστοποίηση) -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
       <div class="win-actions">
-        <!-- Κρατάμε το min για να μη σπάει το attrwin.js, αλλά το κρύβουμε με CSS -->
-        <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize" tabindex="-1">—</button>
+        <!-- Removed Minimize -->
         <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
         <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
@@ -360,6 +362,25 @@
     <div class="win-resize-handle" id="attrwin-resize" aria-hidden="true"></div>
   </div>
 
+  <!-- Share Link Window -->
+  <div id="sharewin" class="win hidden" role="dialog" aria-label="Share link" aria-modal="false">
+    <div class="win-header" id="sharewin-header">
+      <div class="win-title"><span id="sharewin-title">Share Link</span></div>
+      <div class="win-actions">
+        <button class="icon-btn danger" id="sharewin-close" title="Close" aria-label="Close">✕</button>
+      </div>
+    </div>
+    <div class="win-toolbar">
+      <input id="sharewin-url" type="search" placeholder="Link…" readonly />
+      <button id="sharewin-copy" class="btn btn-sm" title="Copy link">Copy</button>
+      <span id="sharewin-status" class="muted"></span>
+    </div>
+    <div class="win-body" style="display:flex;align-items:center;justify-content:center;">
+      <div class="muted">Το link δημιουργήθηκε. Πάτησε <b>Copy</b> για αντιγραφή.</div>
+    </div>
+    <div class="win-resize-handle" id="sharewin-resize" aria-hidden="true"></div>
+  </div>
+
   <!-- Import shared attr window -->
   <script type="module">
     import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=3';
@@ -371,23 +392,122 @@
   </script>
 
 <script>
-  // ---------- THEME TOGGLE (default: dark) ----------
+  // ---------- THEME TOGGLE ----------
   (function(){
     const root = document.documentElement;
     const KEY  = 'geostory-theme';
     const btn  = document.getElementById('themeToggle');
+
     function setTheme(t){
-      const theme = (t === 'dark' ? 'dark' : 'light');
+      const theme = (t === 'light') ? 'light' : 'dark'; // default dark
       root.setAttribute('data-theme', theme);
       localStorage.setItem(KEY, theme);
       btn.title = `Theme: ${theme}`;
     }
-    const saved = localStorage.getItem(KEY) || 'dark'; // default dark
-    setTheme(saved);
+    const saved = localStorage.getItem(KEY);
+    setTheme(saved || 'dark');
+
     btn.addEventListener('click', ()=>{
       const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       setTheme(cur === 'dark' ? 'light' : 'dark');
     });
+  })();
+
+  // ---------- Share Link Window helpers ----------
+  (function(){
+    const win = document.getElementById('sharewin');
+    const header = document.getElementById('sharewin-header');
+    const closeBtn = document.getElementById('sharewin-close');
+    const input = document.getElementById('sharewin-url');
+    const copyBtn = document.getElementById('sharewin-copy');
+    const statusEl = document.getElementById('sharewin-status');
+    const resizeHandle = document.getElementById('sharewin-resize');
+
+    ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
+      .forEach(ev => win.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
+
+    function openShareWindow(url){
+      input.value = url || '';
+      statusEl.textContent = '';
+      win.classList.remove('hidden');
+      bringToFront();
+      setTimeout(()=>{ input.focus(); input.select(); }, 0);
+    }
+    function closeShareWindow(){ win.classList.add('hidden'); }
+    async function doCopy(){
+      try{
+        await navigator.clipboard.writeText(input.value);
+        statusEl.textContent = 'Copied!';
+        setTimeout(()=> statusEl.textContent = '', 1500);
+      }catch(e){
+        input.select();
+        statusEl.textContent = 'Select + Ctrl/Cmd+C';
+        setTimeout(()=> statusEl.textContent = '', 2000);
+      }
+    }
+
+    // Drag
+    let drag = null;
+    header.addEventListener('mousedown', (e)=>{
+      if(e.button!==0) return;
+      e.preventDefault();
+      const rect = win.getBoundingClientRect();
+      drag = { ox: e.clientX - rect.left, oy: e.clientY - rect.top };
+      bringToFront();
+      window.addEventListener('mousemove', onDrag);
+      window.addEventListener('mouseup', stopDrag);
+    });
+    function onDrag(e){
+      if(!drag) return;
+      const x = Math.max(0, e.clientX - drag.ox);
+      const y = Math.max(0, e.clientY - drag.oy);
+      win.style.left = x + 'px';
+      win.style.top = y + 'px';
+    }
+    function stopDrag(){
+      window.removeEventListener('mousemove', onDrag);
+      window.removeEventListener('mouseup', stopDrag);
+      drag = null;
+    }
+
+    // Resize
+    let rz = null;
+    resizeHandle.addEventListener('mousedown', (e)=>{
+      if(e.button!==0) return;
+      e.preventDefault();
+      const rect = win.getBoundingClientRect();
+      rz = { sx: e.clientX, sy: e.clientY, w: rect.width, h: rect.height };
+      bringToFront();
+      window.addEventListener('mousemove', onResize);
+      window.addEventListener('mouseup', stopResize);
+    });
+    function onResize(e){
+      if(!rz) return;
+      const w = Math.max(420, rz.w + (e.clientX - rz.sx));
+      const h = Math.max(220, rz.h + (e.clientY - rz.sy));
+      win.style.width = w + 'px';
+      win.style.height = h + 'px';
+    }
+    function stopResize(){
+      window.removeEventListener('mousemove', onResize);
+      window.removeEventListener('mouseup', stopResize);
+      rz = null;
+    }
+
+    function bringToFront(){
+      const z = 100000 + (Date.now() % 10000);
+      win.style.zIndex = z;
+    }
+    win.addEventListener('mousedown', bringToFront);
+
+    closeBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); closeShareWindow(); });
+    copyBtn.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); doCopy(); });
+
+    document.addEventListener('keydown', (e)=>{
+      if(e.key==='Escape' && !win.classList.contains('hidden')) closeShareWindow();
+    });
+
+    window.__openShareWindow = openShareWindow;
   })();
 
   // ---------- MAP / BASEMAPS ----------
@@ -422,6 +542,7 @@
     return f ? Object.keys(f.properties) : [];
   }
 
+  // Palettes
   const PALETTES = {
     category10: ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"],
     set3: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
@@ -445,7 +566,7 @@
     return qs;
   }
 
-  // ---------- IDENTIFY MODE (per layer) ----------
+  // ---------- IDENTIFY MODE ----------
   const identify = { active:false, layerId:null, btnEl:null };
   function setIdentify(layerId, btnEl){
     if(identify.active && identify.layerId === layerId){
@@ -856,7 +977,7 @@
     setTimeout(augmentAttrTableWithZoom, 0);
   }
 
-  // ---------- MEASURE TOOLS (top-right) ----------
+  // ---------- MEASURE TOOLS ----------
   const measureLayer = L.featureGroup().addTo(map);
   let measureMode = null;      // 'distance' | 'area' | null
   let pts = [];                // [[lng,lat], ...]
@@ -864,22 +985,22 @@
   let ghost  = null;           // live preview
   let finishing = false;       // guard για finish
 
-  // HUD (δίπλα στον κέρσορα)
+  // HUD
   const mapEl = map.getContainer();
   const hud = document.createElement('div');
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  /* Pan μόνο με ροδέλα όσο μετράς */
+  /* Pan μόνο με ροδέλα όταν μετράς */
   let isMeasuring = false;
   function enablePanOnlyWithMiddleButton(){
     if(!mapEl.__measureMouseDownBound){
       mapEl.addEventListener('mousedown', (e)=>{
         if(!isMeasuring) return;
         if(e.button === 1){
-          map.dragging.enable();   // pan όσο κρατάς πατημένη τη ροδέλα
+          map.dragging.enable();   // pan με ροδέλα
         } else {
-          map.dragging.disable();  // κόψε pan για αριστερό/δεξί όσο μετράς
+          map.dragging.disable();  // κόψε pan για αριστερό/δεξί
         }
       }, true);
       mapEl.__measureMouseDownBound = true;
@@ -887,7 +1008,7 @@
     if(!mapEl.__measureMouseUpBound){
       mapEl.addEventListener('mouseup', ()=>{
         if(!isMeasuring) return;
-        map.dragging.disable();
+        map.dragging.disable();    // όταν αφήνεις, κλείνει πάλι το pan
       }, true);
       mapEl.__measureMouseUpBound = true;
     }
@@ -957,24 +1078,25 @@
   }
 
   function startMeasure(mode){
-    cancelMeasure();               // reset
+    cancelMeasure();
     measureMode = mode;
     pts = [];
     setCursor(true);
     finishing = false;
     hud.style.display='block';
     isMeasuring = true;
-    map.dragging.disable();        // κόψε pan με αριστερό όσο μετράς
+    map.dragging.disable();
     map.on('mousemove', onMouseMove);
   }
 
-  // ΔΕΝ ανοίγουμε popup σε hover — μόνο με click
+  // Show result popup only on CLICK (όχι hover)
   function bindResultClick(layer, latlng, content){
     layer._measure = { latlng, content };
-    layer.on('click', (ev)=>{
-      const m = layer._measure; if(!m) return;
+    layer.on('click', ()=>{
+      const m = layer._measure;
+      if(!m) return;
       L.popup({ closeButton:true })
-        .setLatLng(ev.latlng || m.latlng)
+        .setLatLng(m.latlng)
         .setContent(m.content)
         .openOn(map);
     });
@@ -1010,7 +1132,12 @@
     clearSketch();
     if(resultLayer){
       resultLayer.addTo(measureLayer);
-      // Δεν ανοίγουμε τώρα popup αυτόματα — θα ανοίγει με click:
+      // open once at finish
+      L.popup({ closeButton:true })
+        .setLatLng(latlngForPopup)
+        .setContent(html)
+        .openOn(map);
+      // re-open only on click later
       bindResultClick(resultLayer, latlngForPopup, html);
     }
 
@@ -1058,7 +1185,7 @@
     updateSketch();
   });
 
-  // CAPTURE dblclick στο container: ΣΙΓΟΥΡΟΣ τερματισμός μέτρησης
+  // CAPTURE dblclick: τερματισμός μέτρησης
   if(!mapEl.__dblFinishBound){
     mapEl.addEventListener('dblclick', (ev)=>{
       if(!measureMode) return;
@@ -1151,8 +1278,8 @@
       }
 
       const link = (location.origin + (data.url || `/s/${data.id}`));
-      try{ await navigator.clipboard?.writeText(link); }catch{}
-      alert('Το link δημιουργήθηκε και αντιγράφηκε:\n'+link);
+      // Άνοιξε το Share Window αντί για alert
+      window.__openShareWindow && window.__openShareWindow(link);
     }catch(e){
       alert('Σφάλμα δικτύου: ' + (e?.message || e));
     }
