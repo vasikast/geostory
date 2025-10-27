@@ -793,7 +793,6 @@
     const table = document.getElementById('attrwin-table');
     if(!table) return;
     const thead = table.querySelector('thead');
-    noHead = !thead;
     const tbody = table.querySelector('tbody');
     if(!thead || !tbody) return;
 
@@ -852,6 +851,41 @@
   const hud = document.createElement('div');
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
+
+  /* -------------- ΝΕΟ: pan μόνο με ροδέλα όταν μετράς -------------- */
+  let isMeasuring = false;
+
+  function enablePanOnlyWithMiddleButton(){
+    if(!mapEl.__measureMouseDownBound){
+      mapEl.addEventListener('mousedown', (e)=>{
+        if(!isMeasuring) return;
+        if(e.button === 1){
+          map.dragging.enable();   // pan όσο κρατάς πατημένη τη ροδέλα
+        } else {
+          map.dragging.disable();  // κόψε pan για αριστερό/δεξί όσο μετράς
+        }
+      }, true);
+      mapEl.__measureMouseDownBound = true;
+    }
+
+    if(!mapEl.__measureMouseUpBound){
+      mapEl.addEventListener('mouseup', ()=>{
+        if(!isMeasuring) return;
+        map.dragging.disable();    // μόλις αφήσεις, κλείνει πάλι το pan
+      }, true);
+      mapEl.__measureMouseUpBound = true;
+    }
+
+    if(!mapEl.__measureCtxMenuBound){
+      mapEl.addEventListener('contextmenu', (e)=>{
+        if(!isMeasuring) return;
+        e.preventDefault();        // προαιρετικό: κόβει context menu όταν μετράς
+      });
+      mapEl.__measureCtxMenuBound = true;
+    }
+  }
+  enablePanOnlyWithMiddleButton();
+  /* ----------------------------------------------------------------- */
 
   function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
   function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
@@ -915,6 +949,8 @@
     setCursor(true);
     finishing = false;
     hud.style.display='block';
+    isMeasuring = true;            // ΝΕΟ: μπήκες σε μέτρηση
+    map.dragging.disable();        // ΝΕΟ: κόψε pan με αριστερό όσο μετράς
     map.on('mousemove', onMouseMove);
   }
 
@@ -971,6 +1007,8 @@
     setCursor(false);
     measureMode = null;
     pts = [];
+    isMeasuring = false;       // ΝΕΟ: βγήκες από μέτρηση
+    map.dragging.enable();     // ΝΕΟ: επαναφορά pan με αριστερό
 
     setTimeout(()=> { finishing = false; }, 120);
     map.off('mousemove', onMouseMove);
@@ -985,6 +1023,8 @@
     measureMode = null;
     finishing = false;
     map.off('mousemove', onMouseMove);
+    isMeasuring = false;       // ΝΕΟ
+    map.dragging.enable();     // ΝΕΟ
   }
 
   function clearAllMeasurements(){
@@ -1028,7 +1068,7 @@
     if(e.key==='Escape') cancelMeasure();
   });
 
-  // Custom control buttons (top-right) — icon-only, yellow + tooltips
+  // Custom control buttons (top-right)
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
