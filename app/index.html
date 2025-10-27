@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="el" data-theme="auto">
+<html lang="el" data-theme="dark">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
@@ -168,6 +168,35 @@
   }
   :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
   :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
+
+  /* ---------- THEME OVERRIDES FOR ATTRIBUTE WINDOW ---------- */
+  /* Σκούρο στο dark, λευκό στο light */
+  #attrwin.win{
+    background: var(--panel);
+    border: 1px solid var(--line);
+    color: var(--text);
+  }
+  #attrwin .win-header,
+  #attrwin .win-toolbar{
+    background: color-mix(in oklab, var(--panel) 85%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  #attrwin .win-title{ color: var(--text); }
+  #attrwin .win-actions .icon-btn{ background: color-mix(in oklab, var(--panel) 92%, transparent); border:1px solid var(--line); color: var(--text); }
+  #attrwin .win-actions .icon-btn.danger{ color:#d15252; }
+  #attrwin .win-body{ background: var(--panel); }
+
+  #attrwin table{ color: var(--text); }
+  #attrwin thead th{
+    background: color-mix(in oklab, var(--panel) 85%, transparent);
+    border-bottom: 1px solid var(--line);
+  }
+  #attrwin tbody tr:nth-child(even){ background: color-mix(in oklab, var(--panel) 92%, transparent); }
+  #attrwin tbody tr:hover{ background: color-mix(in oklab, var(--panel) 86%, transparent); }
+
+  /* Κουμπιά μέσα στο attrwin */
+  #attrwin .btn.btn-sm{ background:#1a2448; border:1px solid #2b3c6a; color:#fff; }
+  :root[data-theme="light"] #attrwin .btn.btn-sm{ background:#eef2ff; border:1px solid #dbe5ff; color:#0b1020; }
 </style>
 </head>
 <body>
@@ -315,12 +344,12 @@
     </div>
   </div>
 
-  <!-- Attribute Table Window (draggable/resizable/min/max/close) -->
+  <!-- Attribute Table Window (draggable/resizable/max/close) — χωρίς ελαχιστοποίηση -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
       <div class="win-actions">
-        <button class="icon-btn" id="attrwin-min" title="Minimize" aria-label="Minimize">—</button>
+        <!-- αφαιρέθηκε το κουμπί ελαχιστοποίησης -->
         <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
         <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
@@ -350,13 +379,11 @@
   </script>
 
 <script>
-  // ---------- THEME TOGGLE (one-click) ----------
+  // ---------- THEME TOGGLE (default: dark) ----------
   (function(){
     const root = document.documentElement;
     const KEY  = 'geostory-theme';
     const btn  = document.getElementById('themeToggle');
-    const sysPref = () =>
-      window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     function setTheme(t){
       const theme = (t === 'dark' ? 'dark' : 'light');
       root.setAttribute('data-theme', theme);
@@ -364,7 +391,7 @@
       btn.title = `Theme: ${theme}`;
     }
     const saved = localStorage.getItem(KEY);
-    setTheme(saved || sysPref());
+    setTheme(saved || 'dark'); // πάντα ξεκινά dark αν δεν υπάρχει αποθηκευμένη επιλογή
     btn.addEventListener('click', ()=>{
       const cur = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
       setTheme(cur === 'dark' ? 'light' : 'dark');
@@ -378,7 +405,7 @@
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
   const map = L.map('map',{zoomControl:true,attributionControl:true});
-  map.doubleClickZoom.disable(); // μόνιμα off ώστε ποτέ να μην κάνει zoom με dblclick
+  map.doubleClickZoom.disable();
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
 
   // ---------- STATE ----------
@@ -599,7 +626,7 @@
     const tables = gpkg.getFeatureTables();
     if(!tables.length){ alert('Δεν βρέθηκαν feature layers στο GeoPackage.'); return; }
     for(const t of tables){
-      const gj = gpkg.exportGeoJSON(t); // FeatureCollection
+      const gj = gpkg.exportGeoJSON(t);
       addGeoJSON(`${file.name} — ${t}`, gj);
     }
   }
@@ -714,15 +741,15 @@
       }
     }
   }
-  sp.field.field.addEventListener('change', ()=>{
+  sp.field.field.addEventListener('change', ()=> {
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
-  sp.field.palette.addEventListener('change', ()=>{
+  sp.field.palette.addEventListener('change', ()=> {
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
-  sp.field.classes.addEventListener('input', ()=>{
+  sp.field.classes.addEventListener('input', ()=> {
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
@@ -852,7 +879,7 @@
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  /* -------------- Pan μόνο με ροδέλα όταν μετράς -------------- */
+  /* Pan μόνο με ροδέλα όταν μετράς */
   let isMeasuring = false;
 
   function enablePanOnlyWithMiddleButton(){
@@ -860,9 +887,9 @@
       mapEl.addEventListener('mousedown', (e)=>{
         if(!isMeasuring) return;
         if(e.button === 1){
-          map.dragging.enable();   // pan όσο κρατάς πατημένη τη ροδέλα
+          map.dragging.enable();
         } else {
-          map.dragging.disable();  // κόψε pan για αριστερό/δεξί όσο μετράς
+          map.dragging.disable();
         }
       }, true);
       mapEl.__measureMouseDownBound = true;
@@ -871,7 +898,7 @@
     if(!mapEl.__measureMouseUpBound){
       mapEl.addEventListener('mouseup', ()=>{
         if(!isMeasuring) return;
-        map.dragging.disable();    // μόλις αφήσεις, κλείνει πάλι το pan
+        map.dragging.disable();
       }, true);
       mapEl.__measureMouseUpBound = true;
     }
@@ -879,13 +906,12 @@
     if(!mapEl.__measureCtxMenuBound){
       mapEl.addEventListener('contextmenu', (e)=>{
         if(!isMeasuring) return;
-        e.preventDefault();        // προαιρετικό: κόβει context menu όταν μετράς
+        e.preventDefault();
       });
       mapEl.__measureCtxMenuBound = true;
     }
   }
   enablePanOnlyWithMiddleButton();
-  /* ------------------------------------------------------------- */
 
   function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
   function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
@@ -943,31 +969,32 @@
   }
 
   function startMeasure(mode){
-    cancelMeasure();               // reset
+    cancelMeasure();
     measureMode = mode;
     pts = [];
     setCursor(true);
     finishing = false;
     hud.style.display='block';
-    isMeasuring = true;            // μπήκες σε μέτρηση
-    map.dragging.disable();        // κόψε pan με αριστερό όσο μετράς
+    isMeasuring = true;
+    map.dragging.disable();
     map.on('mousemove', onMouseMove);
   }
 
-  /* --- ΝΕΟ: popup με ΚΛΙΚ στα αποτελέσματα (όχι hover) --- */
-  function bindResultPopupOnClick(layer, html){
-    if(!layer) return;
-    layer.unbindPopup && layer.unbindPopup();
-    layer.bindPopup(html);
-    layer.off('mouseover'); // βεβαιώσου ότι δεν υπάρχει hover
-    layer.on('click', (e) => {
-      layer.openPopup(e.latlng);
+  // CLICK (όχι hover) για να ξαναδείχνει το popup της μέτρησης
+  function bindResultInteraction(layer, latlng, content){
+    layer._measure = { latlng, content };
+    layer.on('click', ()=>{
+      const m = layer._measure;
+      if(!m) return;
+      L.popup({ closeButton:true })
+        .setLatLng(m.latlng)
+        .setContent(m.content)
+        .openOn(map);
     });
   }
-  /* -------------------------------------------------------- */
 
   function finishMeasure(){
-    if(finishing) return; // guard
+    if(finishing) return;
     finishing = true;
 
     if(!pts.length){ cancelMeasure(); finishing=false; return; }
@@ -1000,16 +1027,15 @@
         .setLatLng(latlngForPopup)
         .setContent(html)
         .openOn(map);
-      // Παλιά: bindResultHover(...)
-      bindResultPopupOnClick(resultLayer, html); // ΝΕΟ: άνοιγμα με κλικ
+      bindResultInteraction(resultLayer, latlngForPopup, html);
     }
 
     stopHUD();
     setCursor(false);
     measureMode = null;
     pts = [];
-    isMeasuring = false;       // βγήκες από μέτρηση
-    map.dragging.enable();     // επαναφορά pan με αριστερό
+    isMeasuring = false;
+    map.dragging.enable();
 
     setTimeout(()=> { finishing = false; }, 120);
     map.off('mousemove', onMouseMove);
@@ -1059,8 +1085,8 @@
       const last = pts[pts.length-1];
       if(!last || !sameLL(last, cur)) pts.push(cur);
       updateSketch();
-      finishMeasure(); // ✅ τελείωσε η μέτρηση
-    }, true); // capture
+      finishMeasure();
+    }, true);
     mapEl.__dblFinishBound = true;
   }
 
