@@ -714,15 +714,15 @@
       }
     }
   }
-  sp.field.field.addEventListener('change', ()=> {
+  sp.field.field.addEventListener('change', ()=>{
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
-  sp.field.palette.addEventListener('change', ()=> {
+  sp.field.palette.addEventListener('change', ()=>{
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
-  sp.field.classes.addEventListener('input', ()=> {
+  sp.field.classes.addEventListener('input', ()=>{
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
   });
@@ -852,7 +852,7 @@
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  /* -------------- ΝΕΟ: pan μόνο με ροδέλα όταν μετράς -------------- */
+  /* -------------- Pan μόνο με ροδέλα όταν μετράς -------------- */
   let isMeasuring = false;
 
   function enablePanOnlyWithMiddleButton(){
@@ -885,7 +885,7 @@
     }
   }
   enablePanOnlyWithMiddleButton();
-  /* ----------------------------------------------------------------- */
+  /* ------------------------------------------------------------- */
 
   function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
   function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
@@ -949,22 +949,22 @@
     setCursor(true);
     finishing = false;
     hud.style.display='block';
-    isMeasuring = true;            // ΝΕΟ: μπήκες σε μέτρηση
-    map.dragging.disable();        // ΝΕΟ: κόψε pan με αριστερό όσο μετράς
+    isMeasuring = true;            // μπήκες σε μέτρηση
+    map.dragging.disable();        // κόψε pan με αριστερό όσο μετράς
     map.on('mousemove', onMouseMove);
   }
 
-  function bindResultHover(layer, latlng, content){
-    layer._measure = { latlng, content };
-    layer.on('mouseover', ()=>{
-      const m = layer._measure;
-      if(!m) return;
-      L.popup({ closeButton:true })
-        .setLatLng(m.latlng)
-        .setContent(m.content)
-        .openOn(map);
+  /* --- ΝΕΟ: popup με ΚΛΙΚ στα αποτελέσματα (όχι hover) --- */
+  function bindResultPopupOnClick(layer, html){
+    if(!layer) return;
+    layer.unbindPopup && layer.unbindPopup();
+    layer.bindPopup(html);
+    layer.off('mouseover'); // βεβαιώσου ότι δεν υπάρχει hover
+    layer.on('click', (e) => {
+      layer.openPopup(e.latlng);
     });
   }
+  /* -------------------------------------------------------- */
 
   function finishMeasure(){
     if(finishing) return; // guard
@@ -1000,15 +1000,16 @@
         .setLatLng(latlngForPopup)
         .setContent(html)
         .openOn(map);
-      bindResultHover(resultLayer, latlngForPopup, html);
+      // Παλιά: bindResultHover(...)
+      bindResultPopupOnClick(resultLayer, html); // ΝΕΟ: άνοιγμα με κλικ
     }
 
     stopHUD();
     setCursor(false);
     measureMode = null;
     pts = [];
-    isMeasuring = false;       // ΝΕΟ: βγήκες από μέτρηση
-    map.dragging.enable();     // ΝΕΟ: επαναφορά pan με αριστερό
+    isMeasuring = false;       // βγήκες από μέτρηση
+    map.dragging.enable();     // επαναφορά pan με αριστερό
 
     setTimeout(()=> { finishing = false; }, 120);
     map.off('mousemove', onMouseMove);
@@ -1023,8 +1024,8 @@
     measureMode = null;
     finishing = false;
     map.off('mousemove', onMouseMove);
-    isMeasuring = false;       // ΝΕΟ
-    map.dragging.enable();     // ΝΕΟ
+    isMeasuring = false;
+    map.dragging.enable();
   }
 
   function clearAllMeasurements(){
