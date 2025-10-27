@@ -26,7 +26,7 @@
 }
 
 /* =========================
-   ATTRIBUTE WINDOW
+   APP WINDOWS (Attribute / Share)
    ========================= */
 .win{
   position: fixed;
@@ -42,13 +42,11 @@
   z-index: 9999;
   user-select: none;
 }
-
 .win.hidden{ display:none; }
 
-/* Θέλεις να ΜΗΝ υπάρχει ελαχιστοποίηση -> κρύβουμε το κουμπί */
+/* Καμία ελαχιστοποίηση στο Attribute Table */
 #attrwin-min { display: none !important; }
-
-/* Αν ποτέ μείνει κλάση .minimized από παλιό κώδικα, ας μην αλλάζει layout */
+/* Αν τυχόν μείνει κλάση .minimized, μην αλλάζει layout */
 .win.minimized .win-body,
 .win.minimized .win-toolbar{ display:flex; height:auto; }
 
@@ -108,24 +106,10 @@ tbody tr:hover{ background:#0f141a; }
   border-radius:4px;
 }
 
-/* Toolbar πάνω από τον χάρτη (προαιρετικό styling) */
-.toolbar{
-  position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index: 4000;
-}
-.map{ position:absolute; inset:0; }
-
-/* --- FIX για drag & resize στο viewer context --- */
-#attrwin {
-  pointer-events: auto !important;
-  z-index: 99999 !important;
-}
-#attrwin-header {
-  cursor: move !important;
-  pointer-events: auto !important;
-}
-#attrwin * {
-  user-select: auto !important;
-}
+/* --- FIX ώστε τα παράθυρα να μην "τρώνε" gestures του χάρτη --- */
+#attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
+#attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
+#attrwin *, #sharewin * { user-select: auto !important; }
 
 /* =========================
    LIGHT THEME TWEAKS
@@ -138,3 +122,37 @@ tbody tr:hover{ background:#0f141a; }
 :root[data-theme="light"] .win-toolbar input[type="search"]{
   background:#ffffff; color:#0b1020; border-color:#e6e8f2;
 }
+
+/* =========================
+   GRAPHIC SCALE BAR (bottom-left)
+   ========================= */
+/* Πάντα λευκό φόντο + μαύρο περίγραμμα για να φαίνεται σε κάθε theme */
+.leaflet-control-graphic-scale{
+  background:#fff;
+  border:1px solid #000;
+  border-radius:6px;
+  padding:6px 8px;
+  box-shadow:0 2px 10px rgba(0,0,0,.15);
+}
+/* Τίτλος και κείμενα σε μαύρο */
+.leaflet-control-graphic-scale .title{
+  font:700 11px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  color:#000;
+  letter-spacing:.2px;
+  margin-bottom:2px;
+}
+.leaflet-control-graphic-scale svg text{
+  font:11px/1.1 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  fill:#000;
+}
+
+/* Μικρό περιθώριο ώστε να μην κολλάει κάτω-αριστερά */
+.leaflet-bottom.leaflet-left .leaflet-control-graphic-scale{
+  margin:10px 12px;
+}
+
+/* (προαιρετικά) toolbar πάνω από τον χάρτη */
+.toolbar{
+  position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index: 4000;
+}
+.map{ position:absolute; inset:0; }
