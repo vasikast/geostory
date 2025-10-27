@@ -802,7 +802,7 @@
       });
     } else if(mode==='unique'){
       const field = sp.field.field.value;
-      const items = JSON.parse(sp.field.legend.dataset.items||'[]);
+      const items = JSON.parse(sp.field.legend.dataset.items || '[]');
       LYR.style.unique.field = field;
       LYR.style.unique.palette = sp.field.palette.value;
       LYR.style.unique.legend = items;
