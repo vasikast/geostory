@@ -1,4 +1,20 @@
-:root{
+/* =========================
+   THEME VARIABLES
+   ========================= */
+/* LIGHT THEME */
+:root[data-theme="light"]{
+  --win-bg: #ffffff;
+  --win-fg: #0b1020;
+  --win-muted:#5a678a;
+  --win-border:#e6e8f2;
+  --win-header:#f5f7fb;
+  --accent:#3b82f6;
+  --danger:#e11d48;
+  --shadow: 0 10px 30px rgba(0,0,0,.12);
+}
+
+/* DARK THEME (default) */
+:root[data-theme="dark"]{
   --win-bg: #14161a;
   --win-fg: #e7eaf0;
   --win-muted:#9aa3b2;
@@ -9,6 +25,9 @@
   --shadow: 0 10px 30px rgba(0,0,0,.35);
 }
 
+/* =========================
+   ATTRIBUTE WINDOW
+   ========================= */
 .win{
   position: fixed;
   left: 40px; top: 60px;
@@ -25,8 +44,14 @@
 }
 
 .win.hidden{ display:none; }
+
+/* Θέλεις να ΜΗΝ υπάρχει ελαχιστοποίηση -> κρύβουμε το κουμπί */
+#attrwin-min { display: none !important; }
+
+/* Αν ποτέ μείνει κλάση .minimized από παλιό κώδικα, ας μην αλλάζει layout */
 .win.minimized .win-body,
-.win.minimized .win-toolbar{ display:none; height:0; }
+.win.minimized .win-toolbar{ display:flex; height:auto; }
+
 .win-header{
   display:flex; align-items:center; justify-content:space-between;
   gap:8px; padding:10px 12px;
@@ -56,8 +81,10 @@
 }
 .win-toolbar .muted{ color:var(--win-muted); font-size:12px; }
 
-.btn{ background:#1a2028; color:var(--win-fg); border:1px solid var(--win-border);
-  padding:8px 12px; border-radius:8px; cursor:pointer; }
+.btn{
+  background:#1a2028; color:var(--win-fg); border:1px solid var(--win-border);
+  padding:8px 12px; border-radius:8px; cursor:pointer;
+}
 .btn:hover{ border-color:var(--accent); }
 .btn-sm{ padding:6px 10px; font-size:12px; }
 
@@ -86,17 +113,28 @@ tbody tr:hover{ background:#0f141a; }
   position:absolute; left:12px; top:12px; display:flex; gap:8px; z-index: 4000;
 }
 .map{ position:absolute; inset:0; }
+
 /* --- FIX για drag & resize στο viewer context --- */
 #attrwin {
   pointer-events: auto !important;
   z-index: 99999 !important;
 }
-
 #attrwin-header {
   cursor: move !important;
   pointer-events: auto !important;
 }
-
 #attrwin * {
   user-select: auto !important;
+}
+
+/* =========================
+   LIGHT THEME TWEAKS
+   ========================= */
+:root[data-theme="light"] .win-body{ background:#ffffff; }
+:root[data-theme="light"] thead th{ background:#f5f7fb; }
+:root[data-theme="light"] tbody tr:nth-child(even){ background:#f9fbff; }
+:root[data-theme="light"] tbody tr:hover{ background:#eef3ff; }
+:root[data-theme="light"] .btn{ background:#ffffff; }
+:root[data-theme="light"] .win-toolbar input[type="search"]{
+  background:#ffffff; color:#0b1020; border-color:#e6e8f2;
 }
