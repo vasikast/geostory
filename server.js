@@ -35,20 +35,26 @@ app.use((req, res, next) => {
   res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   // Mild CSP that works for SPA; tighten once we lock external hosts
-  res.setHeader(
-    "Content-Security-Policy",
-    [
-      "default-src 'self'",
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-      "style-src 'self' 'unsafe-inline'",
-      "img-src 'self' data: blob:",
-      "font-src 'self' data:",
-      "connect-src 'self' https:",
-      "frame-ancestors 'self'",
-      "base-uri 'self'",
-      "form-action 'self'",
-    ].join("; ")
-  );
+res.setHeader(
+  "Content-Security-Policy",
+  [
+    "default-src 'self'",
+    // Leaflet από unpkg
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://unpkg.com",
+    "style-src  'self' 'unsafe-inline' https://unpkg.com",
+    // Tiles (εικόνες χαρτών) από OSM/Esri/OpenTopo + data/blob
+    "img-src 'self' data: blob: https://tile.openstreetmap.org https://server.arcgisonline.com https://a.tile.opentopomap.org https://b.tile.opentopomap.org https://c.tile.opentopomap.org",
+    // σε περίπτωση που φορτωθούν assets/woff από CDN
+    "font-src 'self' data: https:",
+    // για XHR/fetch (GeoJSON, API, κ.λπ.)
+    "connect-src 'self' https:",
+    // αν χρησιμοποιήσεις web workers τώρα ή στο μέλλον
+    "worker-src 'self' blob:",
+    "frame-ancestors 'self'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ")
+);
   next();
 });
 
