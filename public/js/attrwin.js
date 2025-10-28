@@ -101,7 +101,7 @@ function endResize(){
 
 // --------- actions
 btnClose.addEventListener('click', ()=> { win.classList.add('hidden'); });
-btnMin.addEventListener('click', ()=>{
+btnMin?.addEventListener('click', ()=>{
   win.classList.toggle('minimized');
   saveGeom();
 });
@@ -122,10 +122,12 @@ btnMax.addEventListener('click', ()=>{
 document.addEventListener('keydown', (e)=>{
   if(win.classList.contains('hidden')) return;
   if(e.key === 'Escape') win.classList.add('hidden');
-  if(e.key === 'Enter' && e.altKey) btnMin.click();
+  if(e.key === 'Enter' && e.altKey) btnMin?.click();
 });
 
-// --------- table rendering
+// --------- table rendering (+ sorting)
+let sortState = { col: null, dir: 1 }; // 1 asc, -1 desc
+
 function renderTable(rows){
   if(!rows || !rows.length){
     thead.innerHTML = '';
@@ -142,7 +144,33 @@ function renderTable(rows){
     return `<tr>${cols.map(c=>`<td>${escapeHtml(val(r[c]))}</td>`).join('')}</tr>`;
   }).join('');
   countEl.textContent = `${rows.length} rows • ${cols.length} columns`;
+
+  // attach sort click handlers
+  attachSortHandlers(cols);
 }
+
+function attachSortHandlers(cols){
+  const hdrs = Array.from(thead.querySelectorAll('th'));
+  hdrs.forEach((th, idx)=>{
+    th.style.cursor = 'pointer';
+    th.title = 'Sort';
+    th.onclick = ()=>{
+      const col = cols[idx];
+      sortState.dir = (sortState.col === col) ? -sortState.dir : 1;
+      sortState.col = col;
+      const rows = [...dataRows].sort((a,b)=>{
+        const va = a[col]; const vb = b[col];
+        const na = Number(va); const nb = Number(vb);
+        const cmp = (Number.isFinite(na) && Number.isFinite(nb))
+          ? na - nb
+          : String(va ?? '').localeCompare(String(vb ?? ''), undefined, {numeric:true});
+        return cmp * sortState.dir;
+      });
+      renderTable(rows);
+    };
+  });
+}
+
 function val(v){
   if(v == null) return '';
   if(typeof v === 'object') return JSON.stringify(v);
@@ -202,10 +230,9 @@ win.addEventListener('mousedown', ()=> {
   win.style.zIndex = (parseInt(win.style.zIndex||'9999',10) + 1).toString();
 });
 
-// σύνδεση με κουμπί toolbar
+// σύνδεση με κουμπί toolbar (αν υπάρχει)
 $('#btn-attr')?.addEventListener('click', ()=>{
   if (dataRows.length === 0) {
-    // placeholder αν δεν έχεις ακόμα feature selection
     openAttrWindow([], { title: 'Attribute Table' });
   } else {
     openAttrWindow(dataRows, { title: 'Attribute Table' });
