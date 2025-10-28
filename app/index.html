@@ -118,26 +118,39 @@
   :root[data-theme="light"] #themeToggle{ background:#0b1020 !important; color:#ffffff !important; border-color:#0b1020 !important; }
   :root[data-theme="dark"] #themeToggle{ background:#ffffff !important; color:#0b1020 !important; border-color:#ffffff !important; }
 
-  /* Inverted popups (identify & measure result) */
+  /* Default popups (μη Identify) */
   :root[data-theme="light"] .leaflet-popup-content-wrapper,
   :root[data-theme="light"] .leaflet-popup-tip { background:#0b1020; color:#ffffff; border-color:#0b1020; }
   :root[data-theme="dark"] .leaflet-popup-content-wrapper,
   :root[data-theme="dark"] .leaflet-popup-tip { background:#ffffff; color:#0b1020; border-color:#ffffff; }
   .leaflet-popup-content { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; }
-  .leaflet-popup-content td { padding:2px 6px; }
-  .leaflet-popup-content .k { color: var(--muted); }
-  .leaflet-popup-content .v { color: var(--text); }
 
-  /* HUD (live μέτρηση) δίπλα στον κέρσορα */
-  #measureHud{
-    position: absolute; pointer-events: none; z-index: 5000;
-    transform: translate(12px, 12px);
-    font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-    padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
-    box-shadow: 0 6px 20px rgba(0,0,0,.22); display: none;
+  /* ---------- IDENTIFY POPUP (Excel-like table, matches attr theme) ---------- */
+  /* Light */
+  :root[data-theme="light"] .identify-popup .leaflet-popup-content-wrapper,
+  :root[data-theme="light"] .identify-popup .leaflet-popup-tip{
+    background:#ffffff; color:#0b1020; border:1px solid #e6e8f2;
   }
-  :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
-  :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
+  /* Dark */
+  :root[data-theme="dark"] .identify-popup .leaflet-popup-content-wrapper,
+  :root[data-theme="dark"] .identify-popup .leaflet-popup-tip{
+    background:#0a0f1e; color:#e8ecff; border:1px solid #24324f;
+  }
+  .identify-popup .leaflet-popup-content{
+    margin: 10px 12px;
+  }
+  .id-title{
+    font-weight:700; margin: 0 0 8px 0;
+  }
+  .id-table{
+    width:100%; border-collapse:collapse; font-size:13px;
+  }
+  .id-table th, .id-table td{
+    padding:6px 8px; border:1px solid var(--line); vertical-align:top;
+  }
+  :root[data-theme="light"] .id-table thead th{ background:#f5f7ff; }
+  :root[data-theme="dark"]  .id-table thead th{ background:#0b1228; color:#e8ecff; }
+  .id-k{ color: var(--muted); width: 40%; }
 
   /* Windows (Attribute/Share) follow page theme */
   :root[data-theme="dark"] .win{ background:#0f1630; color:#e8ecff; border-color:#24324f; }
@@ -166,7 +179,7 @@
   :root[data-theme="light"] tbody tr:hover{ background:#f7f9ff; }
 
   /* Make sure the windows don't steal map gestures */
-  #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
+  #attrwin, #sharewin { pointer-events: auto !重要; z-index: 99999 !important; }
   #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
   #attrwin *, #sharewin * { user-select: auto !important; }
 
@@ -338,12 +351,11 @@
     </div>
   </div>
 
-  <!-- Attribute Table Window (χωρίς ελαχιστοποίηση) -->
+  <!-- Attribute Table Window -->
   <div id="attrwin" class="win hidden" role="dialog" aria-label="Attribute table" aria-modal="false">
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
       <div class="win-actions">
-        <!-- Removed Minimize -->
         <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
         <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
@@ -412,7 +424,7 @@
     });
   })();
 
-  // Helper: escape HTML (XSS-safe popups)
+  // Helper: escape HTML
   function escapeHtml(s){
     return String(s ?? '').replace(/[&<>\"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
@@ -521,9 +533,9 @@
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
   const map = L.map('map',{zoomControl:true,attributionControl:true});
-  map.doubleClickZoom.disable(); // off για να μην μπερδεύει το finish στα measures
+  map.doubleClickZoom.disable();
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
-  document.getElementById('basemap').value = currentBase; // sync dropdown
+  document.getElementById('basemap').value = currentBase;
 
   // ---------- STATE ----------
   let layers = []; // { id, name, gj, leaflet, visible, kind, style, fields }
@@ -594,11 +606,20 @@
       document.getElementById('map').style.cursor = '';
     }
   });
-  function identifyContent(layerName, props){
+
+  // Identify popup HTML
+  function identifyPopupHtml(layerName, props){
     const rows = Object.entries(props||{}).map(([k,v])=>
-      `<tr><td class="k">${escapeHtml(k)}</td><td class="v">${escapeHtml(v)}</td></tr>`
+      `<tr><td class="id-k">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`
     ).join('');
-    return `<div><strong>${escapeHtml(layerName)}</strong><table>${rows}</table></div>`;
+    return `
+      <div class="id-wrap">
+        <div class="id-title">${escapeHtml(layerName)}</div>
+        <table class="id-table">
+          <thead><tr><th>Field</th><th>Value</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>`;
   }
 
   // ---------- RENDERING ----------
@@ -659,20 +680,15 @@
       pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
       style: (f)=> symb(f),
       onEachFeature:(f,l)=>{
-        const props=f.properties||{};
-        const rows=Object.entries(props).slice(0,12).map(([k,v])=>`<tr><td style="padding:2px 6px;color:var(--muted)">${escapeHtml(k)}</td><td style="padding:2px 6px;color:var(--text)">${escapeHtml(v)}</td></tr>`).join('');
-        l.bindPopup(`<div style="font:13px system-ui"><strong>${escapeHtml(layer.name)}</strong><table>${rows}</table></div>`);
-
-        // Identify override
+        // ✨ ΜΟΝΟ όταν είναι ενεργό το Identify για το συγκεκριμένο layer
         l.on('click', (ev)=>{
           if(!(identify.active && identify.layerId === layer.id)) return;
           L.DomEvent.stop(ev);
-          l.closePopup();
-          const html = identifyContent(layer.name, props);
-          L.popup({ closeButton:true })
-           .setLatLng(ev.latlng)
-           .setContent(html)
-           .openOn(map);
+          const html = identifyPopupHtml(layer.name, f.properties||{});
+          L.popup({ closeButton:true, className:'identify-popup' })
+            .setLatLng(ev.latlng)
+            .setContent(html)
+            .openOn(map);
         });
       }
     });
@@ -756,7 +772,7 @@
     const tables = gpkg.getFeatureTables();
     if(!tables.length){ alert('Δεν βρέθηκαν feature layers στο GeoPackage.'); return; }
     for(const t of tables){
-      const gj = gpkg.exportGeoJSON(t); // FeatureCollection
+      const gj = gpkg.exportGeoJSON(t);
       addGeoJSON(`${file.name} — ${t}`, gj);
     }
   }
@@ -1014,36 +1030,30 @@
 
   // ---------- MEASURE TOOLS ----------
   const measureLayer = L.featureGroup().addTo(map);
-  let measureMode = null;      // 'distance' | 'area' | null
-  let pts = [];                // [[lng,lat], ...]
-  let sketch = null;           // πρόχειρο σχέδιο
-  let ghost  = null;           // live preview
-  let finishing = false;       // guard για finish
+  let measureMode = null;
+  let pts = [];
+  let sketch = null;
+  let ghost  = null;
+  let finishing = false;
 
-  // HUD
   const mapEl = map.getContainer();
   const hud = document.createElement('div');
   hud.id = 'measureHud';
   mapEl.appendChild(hud);
 
-  /* Pan μόνο με ροδέλα όταν μετράς */
   let isMeasuring = false;
   function enablePanOnlyWithMiddleButton(){
     if(!mapEl.__measureMouseDownBound){
       mapEl.addEventListener('mousedown', (e)=>{
         if(!isMeasuring) return;
-        if(e.button === 1){
-          map.dragging.enable();   // pan με ροδέλα
-        } else {
-          map.dragging.disable();  // κόψε pan για αριστερό/δεξί
-        }
+        if(e.button === 1){ map.dragging.enable(); } else { map.dragging.disable(); }
       }, true);
       mapEl.__measureMouseDownBound = true;
     }
     if(!mapEl.__measureMouseUpBound){
       mapEl.addEventListener('mouseup', ()=>{
         if(!isMeasuring) return;
-        map.dragging.disable();    // όταν αφήνεις, κλείνει πάλι το pan
+        map.dragging.disable();
       }, true);
       mapEl.__measureMouseUpBound = true;
     }
@@ -1073,9 +1083,7 @@
     hud.style.left = (ev.clientX - rect.left) + 'px';
     hud.style.top  = (ev.clientY - rect.top) + 'px';
   }
-  function sameLL(a,b){ return a && b && Math.abs(a[0]-b[0])<1e-9 && Math.abs(a[1]-b[1])<1e-9; }
 
-  // live preview (ghost)
   function updateGhost(latlng){
     if(!measureMode || pts.length===0) return;
     clearGhost();
@@ -1100,7 +1108,6 @@
     ghost.addTo(measureLayer);
   }
 
-  // sketch όσο κλικάρουμε
   function updateSketch(){
     if(!pts.length) return;
     clearSketch();
@@ -1124,7 +1131,6 @@
     map.on('mousemove', onMouseMove);
   }
 
-  // Show result popup only on CLICK (όχι hover)
   function bindResultClick(layer, latlng, content){
     layer._measure = { latlng, content };
     layer.on('click', ()=>{
@@ -1150,14 +1156,14 @@
     if(measureMode==='distance' && pts.length>=2){
       const line = turf.lineString(pts);
       const lenKm = turf.length(line, {units:'kilometers'});
-      const mid = turf.along(line, lenKm/2, {units:'kilometers'}).geometry.coordinates; // [lng,lat]
+      const mid = turf.along(line, lenKm/2, {units:'kilometers'}).geometry.coordinates;
       latlngForPopup = L.latLng(mid[1], mid[0]);
       html = `<strong>Length</strong><br>${kmFmt(lenKm)}`;
       resultLayer = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3,interactive:true});
     }else if(measureMode==='area' && pts.length>=3){
       const poly = turf.polygon([[...pts, pts[0]]]);
       const a = turf.area(poly);
-      const c = turf.centroid(poly).geometry.coordinates; // [lng,lat]
+      const c = turf.centroid(poly).geometry.coordinates;
       latlngForPopup = L.latLng(c[1], c[0]);
       html = `<strong>Area</strong><br>${areaFmt(a)}`;
       resultLayer = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:true});
@@ -1167,12 +1173,10 @@
     clearSketch();
     if(resultLayer){
       resultLayer.addTo(measureLayer);
-      // open once at finish
       L.popup({ closeButton:true })
         .setLatLng(latlngForPopup)
         .setContent(html)
         .openOn(map);
-      // re-open only on click later
       bindResultClick(resultLayer, latlngForPopup, html);
     }
 
@@ -1212,7 +1216,6 @@
     updateGhost(e.latlng);
   }
 
-  // ΜΟΝΟ ΚΛΙΚ: προσθήκη κορυφής (αγνοεί το 2ο κλικ του dblclick)
   map.on('click', (e)=>{
     if(!measureMode) return;
     if(e.originalEvent && e.originalEvent.detail > 1) return;
@@ -1220,7 +1223,6 @@
     updateSketch();
   });
 
-  // CAPTURE dblclick: τερματισμός μέτρησης
   if(!mapEl.__dblFinishBound){
     mapEl.addEventListener('dblclick', (ev)=>{
       if(!measureMode) return;
@@ -1237,12 +1239,10 @@
     mapEl.__dblFinishBound = true;
   }
 
-  // ESC για ακύρωση
   L.DomEvent.on(document, 'keydown', (e)=>{
     if(e.key==='Escape') cancelMeasure();
   });
 
-  // Custom control buttons (top-right)
   const MeasureControl = L.Control.extend({
     options: { position: 'topright' },
     onAdd: function(){
@@ -1274,7 +1274,7 @@
   });
   map.addControl(new MeasureControl());
 
-  // ---------- CUSTOM SCALE BAR (bottom-left με περιθώριο) ----------
+  // ---------- CUSTOM SCALE BAR ----------
   const ScaleControl = L.Control.extend({
     options: { position: 'bottomleft' },
     onAdd: function(){
@@ -1296,7 +1296,7 @@
     onRemove(){},
     update(){
       if(!this._box) return;
-      const R = 6378137; // meters
+      const R = 6378137;
       const lat = map.getCenter().lat * Math.PI/180;
       const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
       const DPI = (window.devicePixelRatio || 1) * 96;
@@ -1342,11 +1342,10 @@
   map.on('move zoom', refreshScale);
   refreshScale();
 
-  // ---------- COMPACT GEOJSON HELPERS (για μικρότερο payload) ----------
+  // ---------- COMPACT HELPERS ----------
   function round6(n){ return Math.round(n*1e5)/1e5; }
   function processCoords(coords){
     if (typeof coords[0] === 'number'){
-      // [lng, lat] ή [lng, lat, z]
       if (coords.length === 2) return [round6(coords[0]), round6(coords[1])];
       if (coords.length >= 3) return [round6(coords[0]), round6(coords[1]), round6(coords[2])];
     }
@@ -1368,22 +1367,15 @@
     return out;
   }
   function compactFeature(feat){
-    return {
-      type: 'Feature',
-      id: feat.id, // διατηρούμε αν υπάρχει
-      properties: stripEmpty(feat.properties || {}),
-      geometry: compactGeometry(feat.geometry)
-    };
+    return { type: 'Feature', id: feat.id, properties: stripEmpty(feat.properties || {}), geometry: compactGeometry(feat.geometry) };
   }
   function compactGeoJSON(fc){
     const feats = (fc.features || []).map(compactFeature);
-    const out = { type:'FeatureCollection', features:feats };
-    // πετάμε bbox/crs αν υπάρχουν
-    return out;
+    return { type:'FeatureCollection', features:feats };
   }
   function byteLen(str){ return new Blob([str]).size; }
 
-  <!-- ---------- GENERATE LINK (instant share window) ---------- -->
+  // ---------- GENERATE LINK (instant share window) ----------
   document.getElementById('btnGenerate').addEventListener('click', async ()=>{
     const openShare = window.__openShareWindow;
     const shareInput = document.getElementById('sharewin-url');
@@ -1410,7 +1402,6 @@
     }
 
     try{
-      // Άνοιξε ΑΜΕΣΑ το share window σε κατάσταση "Generating…"
       if(openShare) openShare('');
       setShareBusy(true, 'Generating…');
       setBusy(true);
@@ -1441,7 +1432,6 @@
         }))
       };
 
-      // Προληπτικός έλεγχος μεγέθους (ίδιος με πριν)
       const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
       const size = byteLen(payloadPreview);
       if (size > 10_000_000) {
@@ -1459,7 +1449,6 @@
         return;
       }
 
-      // POST
       const r = await fetch('/api/stories', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
@@ -1496,7 +1485,6 @@
     }
   });
 
-  // Global ESC to close top panels
   document.addEventListener('keydown',(e)=>{
     if(e.key!=='Escape') return;
     const spEl = document.getElementById('stylePanel');
