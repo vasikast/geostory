@@ -184,8 +184,20 @@ function fromBr64(possiblyBr64) {
 app.post("/api/stories", editorGuard, async (req, res) => {
   try {
     await initDbOnce();
-    const { state, ttlDays = 7 } = req.body || {};
-    if (!state || !Array.isArray(state.layers)) return res.status(400).json({ error: "Invalid state: expected { layers: [] }" });
+
+    const incoming = req.body || {};
+    const ttlDays = Number(incoming.ttlDays ?? 7);
+
+    // Αν το body είναι επίπεδο (έχει κατευθείαν layers), πάρε αυτό.
+    // Αλλιώς, πάρε incoming.state (παλιό σχήμα).
+    const state =
+      (incoming && Array.isArray(incoming.layers)) ? incoming :
+      (incoming && incoming.state) ? incoming.state :
+      null;
+
+    if (!state || !Array.isArray(state.layers)) {
+      return res.status(400).json({ error: "Invalid state: expected { layers: [] }" });
+    }
     if (state.layers.length === 0) return res.status(400).json({ error: "No layers to publish" });
     if (state.layers.length > MAX_LAYERS_FREE) return res.status(400).json({ error: `Max ${MAX_LAYERS_FREE} layers (free)` });
 
