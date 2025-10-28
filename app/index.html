@@ -1393,14 +1393,37 @@ document.getElementById('btnGenerate').addEventListener('click', async ()=>{
     alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.'); return;
   }
 
-  const state = {
-    title: document.getElementById('title').value || 'Untitled',
-    description: document.getElementById('desc').value || '',
-    basemap: currentBase,
-    center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
-    zoom: map.getZoom(),
-    layers: layers.map(L=>({ name:L.name, gj:L.gj, visible:L.visible, kind:L.kind, style:L.style }))
-  };
+const state = {
+  title: document.getElementById('title').value || 'Untitled',
+  description: document.getElementById('desc').value || '',
+  basemap: currentBase,
+  center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
+  zoom: map.getZoom(),
+  layers: layers.map(L=>({
+    name: L.name,
+    gj: compactGeoJSON(L.gj),   // ✅ compact για μικρότερο payload
+    visible: L.visible,
+    kind: L.kind,
+    style: L.style
+  }))
+};
+// Προληπτικός έλεγχος μεγέθους (Render limit ~2 MB)
+const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
+const size = byteLen(payloadPreview);
+if (size > 2_000_000) {
+  const perLayer = state.layers.map((L,i) => ({
+    i: i+1,
+    name: L.name,
+    features: (L.gj.features || []).length,
+  }));
+  alert(
+    `Το payload είναι πολύ μεγάλο (${(size/1e6).toFixed(2)} MB > 2.00 MB).\n` +
+    `Μείωσε features/απλούστευσε γεωμετρίες ή σπάσε σε 2 links.\n\n` +
+    `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
+  );
+  return;
+}
+
 
   try{
     const r = await fetch('/api/stories', {
