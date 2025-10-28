@@ -1003,7 +1003,6 @@
       return { __fid: fid, id: f.id ?? (i+1), ...f.properties };
     });
     window.openAttrWindow(rows, { title: `Attributes • ${escapeHtml(LYR.name)}` });
-    // counter & Enter-blur helper
     const cntEl = document.getElementById('attrwin-count');
     if(cntEl) cntEl.textContent = `Rows: ${rows.length}`;
     const srch = document.getElementById('attrwin-search');
@@ -1231,7 +1230,6 @@
       const ll = map.mouseEventToLatLng(ev);
       const cur = [ll.lng, ll.lat];
       const last = pts[pts.length-1];
-      // αν η απόσταση είναι κάτω από ~2m, θεώρησέ το ίδιο σημείο
       const isSame = last && map.distance(L.latLng(last[1],last[0]), ll) < 2;
       if(!isSame) pts.push(cur);
       updateSketch();
@@ -1299,30 +1297,23 @@
     onRemove(){},
     update(){
       if(!this._box) return;
-      // meters per pixel at current latitude (WebMercator)
       const R = 6378137; // meters
       const lat = map.getCenter().lat * Math.PI/180;
       const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
-
-      // scale denominator ≈ m/px * (dpi / 0.0254)
       const DPI = (window.devicePixelRatio || 1) * 96;
       const denom = mPerPx * (DPI / 0.0254);
       const denomStr = formatScale(Math.round(denom));
       this._left.textContent = `1:${denomStr}`;
-
-      // choose a nice bar length in meters that fits ~120–180px
       const targetPx = 140;
       const targetMeters = mPerPx * targetPx;
       const nice = pickNice(targetMeters);
       const px = nice / mPerPx;
-
       this._right.textContent = formatMeters(nice);
       this._bar.style.width = `${px}px`;
     }
   });
 
   function pickNice(m){
-    // nice steps in meters, expanding as needed
     const base = [1,2,5];
     let scale = 1;
     while(true){
@@ -1352,6 +1343,47 @@
   map.on('move zoom', refreshScale);
   refreshScale();
 
+  // ---------- COMPACT GEOJSON HELPERS (για μικρότερο payload) ----------
+  function round6(n){ return Math.round(n*1e6)/1e6; }
+  function processCoords(coords){
+    if (typeof coords[0] === 'number'){
+      // [lng, lat] ή [lng, lat, z]
+      if (coords.length === 2) return [round6(coords[0]), round6(coords[1])];
+      if (coords.length >= 3) return [round6(coords[0]), round6(coords[1]), round6(coords[2])];
+    }
+    return coords.map(processCoords);
+  }
+  function compactGeometry(geom){
+    if(!geom) return geom;
+    const { type, coordinates } = geom;
+    if(!coordinates) return geom;
+    return { type, coordinates: processCoords(coordinates) };
+  }
+  function stripEmpty(obj){
+    if (obj == null) return obj;
+    const out = {};
+    for (const [k,v] of Object.entries(obj)){
+      if (v === null || v === undefined) continue;
+      out[k] = v;
+    }
+    return out;
+  }
+  function compactFeature(feat){
+    return {
+      type: 'Feature',
+      id: feat.id, // διατηρούμε αν υπάρχει
+      properties: stripEmpty(feat.properties || {}),
+      geometry: compactGeometry(feat.geometry)
+    };
+  }
+  function compactGeoJSON(fc){
+    const feats = (fc.features || []).map(compactFeature);
+    const out = { type:'FeatureCollection', features:feats };
+    // πετάμε bbox/crs αν υπάρχουν
+    return out;
+  }
+  function byteLen(str){ return new Blob([str]).size; }
+
   // ---------- GENERATE LINK ----------
   document.getElementById('btnGenerate').addEventListener('click', async ()=>{
     if(layers.length === 0){
@@ -1360,19 +1392,34 @@
     if(layers.length > 3){
       alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.'); return;
     }
+
+    // εφαρμόζουμε compact στα GeoJSON πριν τη serialisation
+    const compactLayers = layers.map(L=>({
+      name: L.name,
+      gj: compactGeoJSON(L.gj),
+      visible: L.visible,
+      kind: L.kind,
+      style: L.style
+    }));
+
     const state = {
       title: document.getElementById('title').value || 'Untitled',
       description: document.getElementById('desc').value || '',
       basemap: currentBase,
       center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
       zoom: map.getZoom(),
-      layers: layers.map(L=>({ name:L.name, gj:L.gj, visible:L.visible, kind:L.kind, style:L.style }))
+      layers: compactLayers
     };
+
+    const raw = JSON.stringify(state);
+    const sizeKB = Math.round(byteLen(raw)/1024);
+    console.log('State size (after compact): ~', sizeKB, 'KB');
+
     try{
       const r = await fetch('/api/stories', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ state, ttlDays: 7 })
+        body: raw
       });
       const text = await r.text();
       let data = {};
@@ -1380,7 +1427,10 @@
 
       if(!r.ok){
         const msg = data.error || data.message || text || 'Άγνωστο σφάλμα';
-        if(r.status === 403){
+        if(r.status === 413){
+          alert('Το project παραμένει πολύ μεγάλο μετά το compact.\n' +
+                'Μείωσε το μέγεθος (λιγότερα features/layers) ή απλοποίησε τη γεωμετρία.\n\nΛεπτομέρεια: '+msg);
+        } else if(r.status === 403){
           alert('403: Editor/API είναι κλειδωμένο για τοπική χρήση.\n' +
                 'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\nΛεπτομέρεια: ' + msg);
         } else {
