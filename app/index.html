@@ -125,34 +125,24 @@
   :root[data-theme="dark"] .leaflet-popup-tip { background:#ffffff; color:#0b1020; border-color:#ffffff; }
   .leaflet-popup-content { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
-  /* ---------- IDENTIFY POPUP (Excel-like table, matches attr theme) ---------- */
-  /* Light */
+  /* ---------- IDENTIFY POPUP (Excel-like) ---------- */
   :root[data-theme="light"] .identify-popup .leaflet-popup-content-wrapper,
   :root[data-theme="light"] .identify-popup .leaflet-popup-tip{
     background:#ffffff; color:#0b1020; border:1px solid #e6e8f2;
   }
-  /* Dark */
   :root[data-theme="dark"] .identify-popup .leaflet-popup-content-wrapper,
   :root[data-theme="dark"] .identify-popup .leaflet-popup-tip{
     background:#0a0f1e; color:#e8ecff; border:1px solid #24324f;
   }
-  .identify-popup .leaflet-popup-content{
-    margin: 10px 12px;
-  }
-  .id-title{
-    font-weight:700; margin: 0 0 8px 0;
-  }
-  .id-table{
-    width:100%; border-collapse:collapse; font-size:13px;
-  }
-  .id-table th, .id-table td{
-    padding:6px 8px; border:1px solid var(--line); vertical-align:top;
-  }
+  .identify-popup .leaflet-popup-content{ margin:10px 12px; }
+  .id-title{ font-weight:700; margin:0 0 8px 0; }
+  .id-table{ width:100%; border-collapse:collapse; font-size:13px; }
+  .id-table th, .id-table td{ padding:6px 8px; border:1px solid var(--line); vertical-align:top; }
   :root[data-theme="light"] .id-table thead th{ background:#f5f7ff; }
   :root[data-theme="dark"]  .id-table thead th{ background:#0b1228; color:#e8ecff; }
   .id-k{ color: var(--muted); width: 40%; }
 
-  /* Windows (Attribute/Share) follow page theme */
+  /* WINDOWS theme mirrors (attr/share) */
   :root[data-theme="dark"] .win{ background:#0f1630; color:#e8ecff; border-color:#24324f; }
   :root[data-theme="dark"] .win-header{ background:#0b1228; border-bottom-color:#24324f; }
   :root[data-theme="dark"] .win-toolbar{ background:rgba(255,255,255,0.03); border-bottom-color:#24324f; }
@@ -171,19 +161,37 @@
   :root[data-theme="light"] .win-toolbar{ background:rgba(0,0,0,0.02); border-bottom-color:#e6e8f2; }
   :root[data-theme="light"] .win-body{ background:#ffffff; }
   :root[data-theme="light"] .icon-btn{ color:#0b1020; border-color:#e6e8f2; }
-  :root[data-theme="light"] .icon-btn:hover{ border-color:#3b82f6; }
   :root[data-theme="light"] .btn{ background:#f2f5ff; color:#0b1020; border-color:#e6e8f2; }
-  :root[data-theme="light"] .win-toolbar input[type="search"]{ background:#ffffff; color:#0b1020; border-color:#e6e8f2; }
   :root[data-theme="light"] thead th{ background:#f5f7ff; border-bottom-color:#e6e8f2; }
   :root[data-theme="light"] tbody td{ border-bottom-color:#eef1f7; }
   :root[data-theme="light"] tbody tr:hover{ background:#f7f9ff; }
 
-  /* Make sure the windows don't steal map gestures */
-  #attrwin, #sharewin { pointer-events: auto !重要; z-index: 99999 !important; }
-  #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
-  #attrwin *, #sharewin * { user-select: auto !important; }
+  /* ---- Top bar (Scale input + Lock + Measure) ---- */
+  .topbar.leaflet-control{
+    display:flex; gap:10px; align-items:center; padding:8px;
+    border-radius:14px; background: color-mix(in oklab, var(--panel) 75%, transparent);
+    border:1px solid var(--line); box-shadow:0 6px 20px rgba(0,0,0,.15);
+  }
+  .scalebox{
+    display:flex; align-items:center; gap:6px; padding:6px 8px;
+    border:1px solid var(--line); border-radius:10px; background: color-mix(in oklab, var(--panel) 85%, transparent);
+  }
+  .scalebox label{ font-size:12px; color:var(--muted); }
+  #scaleInput{
+    width:110px; padding:6px 8px; border-radius:8px; border:1px solid var(--line);
+    background:var(--panel); color:var(--text); font-size:13px;
+  }
+  #scaleGo{
+    padding:6px 10px; border-radius:8px; border:1px solid var(--line); cursor:pointer;
+    background:var(--acc); color:#081226; font-weight:700;
+  }
+  #scaleLock{
+    padding:6px 10px; border-radius:8px; border:1px solid var(--line); cursor:pointer;
+    background:var(--panel); color:var(--text); font-weight:700;
+  }
+  #scaleLock.active{ outline:2px solid var(--acc); }
 
-  /* Custom SCALE control box */
+  /* Custom SCALE control box (graphic only) */
   .scale-control {
     background:#fff;
     color:#000;
@@ -194,6 +202,7 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.18);
     min-width: 120px;
   }
+  .scale-row{ display:none; } /* 🔒 Κρύβει τα κείμενα πάνω από τη μπάρα */
   .scale-control .scale-graphic {
     position: relative;
     height: 8px;
@@ -202,8 +211,23 @@
     background: linear-gradient(90deg, #000 0 50%, #fff 50% 100%);
   }
   .scale-control .scale-graphic::after{ content:''; position:absolute; inset:0; pointer-events:none; }
-  .scale-row{ display:flex; justify-content:space-between; gap:8px; }
   .leaflet-bottom.leaflet-left { margin: 0 0 14px 14px; }
+
+  /* HUD (live μέτρηση) δίπλα στον κέρσορα */
+  #measureHud{
+    position: absolute; pointer-events: none; z-index: 5000;
+    transform: translate(12px, 12px);
+    font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+    padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+    box-shadow: 0 6px 20px rgba(0,0,0,.22); display: none;
+  }
+  :root[data-theme="light"] #measureHud { background:#0b1020; color:#fff; border-color:#0b1020; }
+  :root[data-theme="dark"]  #measureHud { background:#fff; color:#0b1020; border-color:#fff; }
+
+  /* Windows should not steal map gestures */
+  #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
+  #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
+  #attrwin *, #sharewin * { user-select: auto !important; }
 </style>
 </head>
 <body>
@@ -404,12 +428,11 @@
   </script>
 
 <script>
-  // ---------- THEME TOGGLE (default dark) ----------
+  // ---------- THEME ----------
   (function(){
     const root = document.documentElement;
     const KEY  = 'geostory-theme';
     const btn  = document.getElementById('themeToggle');
-
     function setTheme(t){
       const theme = (t === 'light') ? 'light' : 'dark';
       root.setAttribute('data-theme', theme);
@@ -424,12 +447,11 @@
     });
   })();
 
-  // Helper: escape HTML
   function escapeHtml(s){
     return String(s ?? '').replace(/[&<>\"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
-  // ---------- Share Link Window helpers ----------
+  // ---------- Share Link Window ----------
   (function(){
     const win = document.getElementById('sharewin');
     const header = document.getElementById('sharewin-header');
@@ -526,7 +548,7 @@
     window.__openShareWindow = openShareWindow;
   })();
 
-  // ---------- MAP / BASEMAPS ----------
+  // ---------- MAP ----------
   const basemaps = {
     osm: L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap'}),
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
@@ -541,7 +563,6 @@
   let layers = []; // { id, name, gj, leaflet, visible, kind, style, fields }
   const elBasemap = document.getElementById('basemap');
   const elDrop = document.getElementById('drop');
-  const elFile = document.getElementById('file');
   const elList = document.getElementById('layerList');
 
   // ---------- UTILS ----------
@@ -570,7 +591,6 @@
     return qs;
   }
 
-  // Palettes
   const PALETTES = {
     category10: ["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd","#8c564b","#e377c2","#7f7f7f","#bcbd22","#17becf"],
     set3: ["#8dd3c7","#ffffb3","#bebada","#fb8072","#80b1d3","#fdb462","#b3de69","#fccde5","#d9d9d9","#bc80bd","#ccebc5"],
@@ -583,7 +603,7 @@
     greens:["#edf8e9","#c7e9c0","#74c476","#41ab5d","#238b45","#005a32"]
   };
 
-  // ---------- IDENTIFY MODE ----------
+  // ---------- IDENTIFY ----------
   const identify = { active:false, layerId:null, btnEl:null };
   function setIdentify(layerId, btnEl){
     if(identify.active && identify.layerId === layerId){
@@ -607,7 +627,6 @@
     }
   });
 
-  // Identify popup HTML
   function identifyPopupHtml(layerName, props){
     const rows = Object.entries(props||{}).map(([k,v])=>
       `<tr><td class="id-k">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`
@@ -680,7 +699,6 @@
       pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
       style: (f)=> symb(f),
       onEachFeature:(f,l)=>{
-        // ✨ ΜΟΝΟ όταν είναι ενεργό το Identify για το συγκεκριμένο layer
         l.on('click', (ev)=>{
           if(!(identify.active && identify.layerId === layer.id)) return;
           L.DomEvent.stop(ev);
@@ -695,6 +713,7 @@
   }
 
   function renderList(){
+    const elList = document.getElementById('layerList');
     elList.innerHTML='';
     if(!layers.length){ elList.innerHTML='<div class="muted">Δεν υπάρχουν layers ακόμη.</div>'; return; }
     layers.forEach(L=>{
@@ -955,7 +974,6 @@
 
   // ---------- ATTRIBUTE TABLE ----------
   const __fidToFeature = new Map();
-
   function zoomToFeature(feat){
     try{
       if(!feat) return;
@@ -971,7 +989,6 @@
       tmp.remove && tmp.remove();
     }catch{}
   }
-
   function augmentAttrTableWithZoom(){
     const table = document.getElementById('attrwin-table');
     if(!table) return;
@@ -1003,7 +1020,6 @@
       tr.dataset.zoomAugmented = '1';
     });
   }
-
   const __observer = new MutationObserver(()=> augmentAttrTableWithZoom());
   __observer.observe(document.getElementById('attrwin'), { subtree:true, childList:true });
 
@@ -1028,20 +1044,155 @@
     setTimeout(augmentAttrTableWithZoom, 0);
   }
 
-  // ---------- MEASURE TOOLS ----------
+  // ---------- CUSTOM SCALE BAR (bottom-left με περιθώριο) ----------
+  const ScaleControl = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd: function(){
+      const box = L.DomUtil.create('div','scale-control leaflet-control');
+      box.innerHTML = `
+        <div class="scale-row">
+          <div id="scale-left">1:—</div>
+          <div id="scale-right" style="text-align:right">— m</div>
+        </div>
+        <div class="scale-graphic" id="scale-graphic"></div>
+      `;
+      this._box = box;
+      this._left = box.querySelector('#scale-left');
+      this._right = box.querySelector('#scale-right');
+      this._bar = box.querySelector('#scale-graphic');
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    },
+    onRemove(){},
+    update(){
+      if(!this._box) return;
+      const R = 6378137; // meters
+      const lat = map.getCenter().lat * Math.PI/180;
+      const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
+      const targetPx = 140;
+      const targetMeters = mPerPx * targetPx;
+      const nice = pickNice(targetMeters);
+      const px = nice / mPerPx;
+      this._bar.style.width = `${px}px`;
+      /* Τα κείμενα είναι κρυμμένα με CSS (.scale-row{display:none}) */
+    }
+  });
+  function pickNice(m){
+    const base = [1,2,5];
+    let scale = 1;
+    while(true){
+      for(const b of base){
+        const val = b*scale;
+        if(val >= m) return val;
+      }
+      scale *= 10;
+    }
+  }
+  const scaleCtl = new ScaleControl();
+  map.addControl(scaleCtl);
+  function refreshScale(){ scaleCtl.update(); }
+  map.on('move zoom', refreshScale);
+  refreshScale();
+
+  // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
+  function mPerPxAt(lat, zoom){
+    const R = 6378137; // meters
+    return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
+  }
+  function zoomForDenom(lat, denom){
+    const R = 6378137;
+    const DPI = (window.devicePixelRatio || 1) * 96;
+    const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+    const z = Math.log2(K / denom);
+    return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
+  }
+  function parseScaleInput(s){
+    if(!s) return null;
+    s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
+    s = s.replace(/[.\s,]/g,'');
+    if(/k$/.test(s)) s = String(parseFloat(s)*1000);
+    if(/m$/.test(s)) s = String(parseFloat(s)*1_000_000);
+    const n = Number(s);
+    if(!isFinite(n) || n<=0) return null;
+    return n;
+  }
+
+  const TopBarControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function(){
+      const bar = L.DomUtil.create('div','topbar leaflet-control');
+
+      // scale box (αριστερά από measure)
+      const scaleBox = L.DomUtil.create('div','scalebox', bar);
+      const lbl = L.DomUtil.create('label','', scaleBox);
+      lbl.htmlFor = 'scaleInput'; lbl.textContent = '1:';
+      const inp = L.DomUtil.create('input','', scaleBox);
+      inp.id='scaleInput'; inp.type='text'; inp.placeholder='5000';
+      const go  = L.DomUtil.create('button','', scaleBox);
+      go.id='scaleGo'; go.type='button'; go.textContent='Go';
+      const lock = L.DomUtil.create('button','', scaleBox);
+      lock.id='scaleLock'; lock.type='button'; lock.textContent='Lock';
+
+      // measure group (δεξιά)
+      const mwrap = L.DomUtil.create('div','leaflet-control-measure', bar);
+      const mkBtn = (label, iconTxt) => {
+        const a = L.DomUtil.create('a','',mwrap);
+        a.href='#';
+        a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
+        a.title = label; a.setAttribute('aria-label', label);
+        return a;
+      };
+      const btnDist  = mkBtn('Measure line (click to add points • double click to finish • Esc to cancel)','📏');
+      const btnArea  = mkBtn('Measure area (click to add vertices • double click to finish • Esc to cancel)','▱');
+      const btnClear = mkBtn('Clear all measurements','🧹');
+
+      function setActive(b){
+        [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
+        b && b.classList.add('active');
+      }
+      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnDist); startMeasure('distance'); });
+      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnArea); startMeasure('area'); });
+      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(null); clearAllMeasurements(); });
+
+      // scale handlers
+      function applyScale(){
+        const n = parseScaleInput(inp.value);
+        if(!n){ alert('Δώσε έγκυρη κλίμακα π.χ. 5000, 1:25000, 10k, 1:2m'); return; }
+        const lat = map.getCenter().lat;
+        const z = zoomForDenom(lat, n);
+        map.setZoom(z);
+      }
+      go.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); applyScale(); });
+      inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); applyScale(); } });
+
+      // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
+      let isLocked = false;
+      function setLock(on){
+        isLocked = !!on;
+        lock.classList.toggle('active', isLocked);
+        if(isLocked){
+          map.scrollWheelZoom.disable();
+          map.touchZoom.disable();
+        }else{
+          map.scrollWheelZoom.enable();
+          map.touchZoom.enable();
+        }
+      }
+      lock.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); setLock(!isLocked); });
+
+      L.DomEvent.disableClickPropagation(bar);
+      return bar;
+    }
+  });
+  map.addControl(new TopBarControl());
+
+  // ---------- MEASURE CORE ----------
   const measureLayer = L.featureGroup().addTo(map);
-  let measureMode = null;
-  let pts = [];
-  let sketch = null;
-  let ghost  = null;
-  let finishing = false;
-
+  let measureMode = null, pts = [], sketch = null, ghost = null, finishing = false;
   const mapEl = map.getContainer();
-  const hud = document.createElement('div');
-  hud.id = 'measureHud';
-  mapEl.appendChild(hud);
-
+  const hud = document.createElement('div'); hud.id='measureHud'; mapEl.appendChild(hud);
   let isMeasuring = false;
+
   function enablePanOnlyWithMiddleButton(){
     if(!mapEl.__measureMouseDownBound){
       mapEl.addEventListener('mousedown', (e)=>{
@@ -1121,8 +1272,7 @@
 
   function startMeasure(mode){
     cancelMeasure();
-    measureMode = mode;
-    pts = [];
+    measureMode = mode; pts = [];
     setCursor(true);
     finishing = false;
     hud.style.display='block';
@@ -1146,12 +1296,9 @@
   function finishMeasure(){
     if(finishing) return;
     finishing = true;
-
     if(!pts.length){ cancelMeasure(); finishing=false; return; }
 
-    let resultLayer = null;
-    let latlngForPopup = null;
-    let html = '';
+    let resultLayer = null, latlngForPopup = null, html = '';
 
     if(measureMode==='distance' && pts.length>=2){
       const line = turf.lineString(pts);
@@ -1169,8 +1316,7 @@
       resultLayer = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:true});
     }
 
-    clearGhost();
-    clearSketch();
+    clearGhost(); clearSketch();
     if(resultLayer){
       resultLayer.addTo(measureLayer);
       L.popup({ closeButton:true })
@@ -1180,167 +1326,47 @@
       bindResultClick(resultLayer, latlngForPopup, html);
     }
 
-    stopHUD();
-    setCursor(false);
-    measureMode = null;
-    pts = [];
+    stopHUD(); setCursor(false);
+    measureMode = null; pts = [];
     isMeasuring = false;
     map.dragging.enable();
-
     setTimeout(()=> { finishing = false; }, 120);
     map.off('mousemove', onMouseMove);
   }
 
   function cancelMeasure(){
-    pts = [];
-    clearGhost();
-    clearSketch();
-    stopHUD();
-    setCursor(false);
-    measureMode = null;
-    finishing = false;
-    map.off('mousemove', onMouseMove);
-    isMeasuring = false;
-    map.dragging.enable();
+    pts = []; clearGhost(); clearSketch(); stopHUD();
+    setCursor(false); measureMode = null; finishing = false;
+    map.off('mousemove', onMouseMove); isMeasuring = false; map.dragging.enable();
   }
 
   function clearAllMeasurements(){
-    cancelMeasure();
-    measureLayer.clearLayers();
-    map.closePopup();
+    cancelMeasure(); measureLayer.clearLayers(); map.closePopup();
   }
 
-  function onMouseMove(e){
-    if(!measureMode) return;
-    moveHUD(e);
-    updateGhost(e.latlng);
-  }
+  function onMouseMove(e){ if(!measureMode) return; moveHUD(e); updateGhost(e.latlng); }
 
   map.on('click', (e)=>{
     if(!measureMode) return;
     if(e.originalEvent && e.originalEvent.detail > 1) return;
-    const ll = e.latlng; pts.push([ll.lng, ll.lat]);
-    updateSketch();
+    const ll = e.latlng; pts.push([ll.lng, ll.lat]); updateSketch();
   });
 
   if(!mapEl.__dblFinishBound){
     mapEl.addEventListener('dblclick', (ev)=>{
       if(!measureMode) return;
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault(); ev.stopPropagation();
       const ll = map.mouseEventToLatLng(ev);
       const cur = [ll.lng, ll.lat];
       const last = pts[pts.length-1];
       const isSame = last && map.distance(L.latLng(last[1],last[0]), ll) < 2;
       if(!isSame) pts.push(cur);
-      updateSketch();
-      finishMeasure();
+      updateSketch(); finishMeasure();
     }, true);
     mapEl.__dblFinishBound = true;
   }
 
-  L.DomEvent.on(document, 'keydown', (e)=>{
-    if(e.key==='Escape') cancelMeasure();
-  });
-
-  const MeasureControl = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function(){
-      const container = L.DomUtil.create('div','leaflet-control leaflet-control-measure leaflet-bar');
-      const mkBtn = (label, iconTxt) => {
-        const a = L.DomUtil.create('a','',container);
-        a.href='#';
-        a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
-        a.title = label;
-        a.setAttribute('aria-label', label);
-        return a;
-      };
-      const btnDist  = mkBtn('Measure line (click to add points • double click to finish • Esc to cancel)','📏');
-      const btnArea  = mkBtn('Measure area (click to add vertices • double click to finish • Esc to cancel)','▱');
-      const btnClear = mkBtn('Clear all measurements','🧹');
-
-      function setActive(b){
-        [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
-        b && b.classList.add('active');
-      }
-
-      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnDist); startMeasure('distance'); });
-      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnArea); startMeasure('area'); });
-      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(null); clearAllMeasurements(); });
-
-      L.DomEvent.disableClickPropagation(container);
-      return container;
-    }
-  });
-  map.addControl(new MeasureControl());
-
-  // ---------- CUSTOM SCALE BAR ----------
-  const ScaleControl = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd: function(){
-      const box = L.DomUtil.create('div','scale-control leaflet-control');
-      box.innerHTML = `
-        <div class="scale-row">
-          <div id="scale-left">1:—</div>
-          <div id="scale-right" style="text-align:right">— m</div>
-        </div>
-        <div class="scale-graphic" id="scale-graphic"></div>
-      `;
-      this._box = box;
-      this._left = box.querySelector('#scale-left');
-      this._right = box.querySelector('#scale-right');
-      this._bar = box.querySelector('#scale-graphic');
-      L.DomEvent.disableClickPropagation(box);
-      return box;
-    },
-    onRemove(){},
-    update(){
-      if(!this._box) return;
-      const R = 6378137;
-      const lat = map.getCenter().lat * Math.PI/180;
-      const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
-      const DPI = (window.devicePixelRatio || 1) * 96;
-      const denom = mPerPx * (DPI / 0.0254);
-      const denomStr = formatScale(Math.round(denom));
-      this._left.textContent = `1:${denomStr}`;
-      const targetPx = 140;
-      const targetMeters = mPerPx * targetPx;
-      const nice = pickNice(targetMeters);
-      const px = nice / mPerPx;
-      this._right.textContent = formatMeters(nice);
-      this._bar.style.width = `${px}px`;
-    }
-  });
-
-  function pickNice(m){
-    const base = [1,2,5];
-    let scale = 1;
-    while(true){
-      for(const b of base){
-        const val = b*scale;
-        if(val >= m) return val;
-      }
-      scale *= 10;
-    }
-  }
-  function formatScale(n){
-    return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-  }
-  function formatMeters(m){
-    if(m >= 1000){
-      const km = m/1000;
-      if(km >= 100) return `${Math.round(km)} km`;
-      if(km >= 10)  return `${(Math.round(km*10)/10).toFixed(1)} km`;
-      return `${(Math.round(km*100)/100).toFixed(2)} km`;
-    }
-    return `${Math.round(m)} m`;
-  }
-
-  const scaleCtl = new ScaleControl();
-  map.addControl(scaleCtl);
-  function refreshScale(){ scaleCtl.update(); }
-  map.on('move zoom', refreshScale);
-  refreshScale();
+  L.DomEvent.on(document, 'keydown', (e)=>{ if(e.key==='Escape') cancelMeasure(); });
 
   // ---------- COMPACT HELPERS ----------
   function round6(n){ return Math.round(n*1e5)/1e5; }
@@ -1375,7 +1401,7 @@
   }
   function byteLen(str){ return new Blob([str]).size; }
 
-  // ---------- GENERATE LINK (instant share window) ----------
+  // ---------- GENERATE LINK ----------
   document.getElementById('btnGenerate').addEventListener('click', async ()=>{
     const openShare = window.__openShareWindow;
     const shareInput = document.getElementById('sharewin-url');
@@ -1485,6 +1511,7 @@
     }
   });
 
+  // ESC κλείσιμο panels
   document.addEventListener('keydown',(e)=>{
     if(e.key!=='Escape') return;
     const spEl = document.getElementById('stylePanel');
