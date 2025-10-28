@@ -160,7 +160,6 @@
   :root[data-theme="light"] .icon-btn{ color:#0b1020; border-color:#e6e8f2; }
   :root[data-theme="light"] .icon-btn:hover{ border-color:#3b82f6; }
   :root[data-theme="light"] .btn{ background:#f2f5ff; color:#0b1020; border-color:#e6e8f2; }
-  :root[data-theme="light"] .btn:hover{ border-color:#3b82f6; }
   :root[data-theme="light"] .win-toolbar input[type="search"]{ background:#ffffff; color:#0b1020; border-color:#e6e8f2; }
   :root[data-theme="light"] thead th{ background:#f5f7ff; border-bottom-color:#e6e8f2; }
   :root[data-theme="light"] tbody td{ border-bottom-color:#eef1f7; }
@@ -1384,77 +1383,118 @@
   }
   function byteLen(str){ return new Blob([str]).size; }
 
- // ---------- GENERATE LINK ----------
-document.getElementById('btnGenerate').addEventListener('click', async ()=>{
-  if(layers.length === 0){
-    alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.'); return;
-  }
-  if(layers.length > 3){
-    alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.'); return;
-  }
+  <!-- ---------- GENERATE LINK (instant share window) ---------- -->
+  document.getElementById('btnGenerate').addEventListener('click', async ()=>{
+    const openShare = window.__openShareWindow;
+    const shareInput = document.getElementById('sharewin-url');
+    const shareStatus = document.getElementById('sharewin-status');
+    const shareCopy = document.getElementById('sharewin-copy');
+    const btn = document.getElementById('btnGenerate');
 
-const state = {
-  title: document.getElementById('title').value || 'Untitled',
-  description: document.getElementById('desc').value || '',
-  basemap: currentBase,
-  center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
-  zoom: map.getZoom(),
-  layers: layers.map(L=>({
-    name: L.name,
-    gj: compactGeoJSON(L.gj),   // ✅ compact για μικρότερο payload
-    visible: L.visible,
-    kind: L.kind,
-    style: L.style
-  }))
-};
-// Προληπτικός έλεγχος μεγέθους (Render limit ~2 MB)
-const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
-const size = byteLen(payloadPreview);
-if (size > 10_000_000) {
-  const perLayer = state.layers.map((L,i) => ({
-    i: i+1,
-    name: L.name,
-    features: (L.gj.features || []).length,
-  }));
-  alert(
-    `Το payload είναι πολύ μεγάλο (${(size/1e6).toFixed(2)} MB > 2.00 MB).\n` +
-    `Μείωσε features/απλούστευσε γεωμετρίες ή σπάσε σε 2 links.\n\n` +
-    `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
-  );
-  return;
-}
-
-
-  try{
-    const r = await fetch('/api/stories', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      // 🔧 ΣΗΜΑΝΤΙΚΟ: Στέλνουμε επίπεδο αντικείμενο, ΟΧΙ { state: ... }
-      body: JSON.stringify({ ...state, ttlDays: 7 })
-    });
-
-    const text = await r.text();
-    let data = {};
-    try{ data = JSON.parse(text); }catch{}
-
-    if(!r.ok){
-      const msg = data.error || data.message || text || 'Άγνωστο σφάλμα';
-      if(r.status === 403){
-        alert('403: Editor/API είναι κλειδωμένο για τοπική χρήση.\n' +
-              'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\nΛεπτομέρεια: ' + msg);
-      } else {
-        alert(`Σφάλμα ${r.status}: ${msg}`);
+    function setBusy(on){
+      btn.disabled = !!on;
+      btn.textContent = on ? 'Generating…' : 'Generate Link';
+    }
+    function setShareBusy(on, msg){
+      if(!shareInput || !shareCopy || !shareStatus) return;
+      if(on){
+        shareInput.value = '';
+        shareInput.placeholder = 'Generating…';
+        shareCopy.disabled = true;
+        shareStatus.textContent = msg || 'Generating…';
+      }else{
+        shareInput.placeholder = 'Link…';
+        shareCopy.disabled = false;
+        shareStatus.textContent = msg || '';
       }
-      return;
     }
 
-    const link = (location.origin + (data.url || `/s/${data.id}`));
-    window.__openShareWindow && window.__openShareWindow(link);
-  }catch(e){
-    alert('Σφάλμα δικτύου: ' + (e?.message || e));
-  }
-});
+    try{
+      // Άνοιξε ΑΜΕΣΑ το share window σε κατάσταση "Generating…"
+      if(openShare) openShare('');
+      setShareBusy(true, 'Generating…');
+      setBusy(true);
 
+      if(layers.length === 0){
+        setBusy(false); setShareBusy(false);
+        alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.');
+        return;
+      }
+      if(layers.length > 3){
+        setBusy(false); setShareBusy(false);
+        alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.');
+        return;
+      }
+
+      const state = {
+        title: document.getElementById('title').value || 'Untitled',
+        description: document.getElementById('desc').value || '',
+        basemap: currentBase,
+        center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
+        zoom: map.getZoom(),
+        layers: layers.map(L=>({
+          name: L.name,
+          gj: compactGeoJSON(L.gj),
+          visible: L.visible,
+          kind: L.kind,
+          style: L.style
+        }))
+      };
+
+      // Προληπτικός έλεγχος μεγέθους (ίδιος με πριν)
+      const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
+      const size = byteLen(payloadPreview);
+      if (size > 10_000_000) {
+        const perLayer = state.layers.map((L,i) => ({
+          i: i+1,
+          name: L.name,
+          features: (L.gj.features || []).length,
+        }));
+        setBusy(false); setShareBusy(false);
+        alert(
+          `Το payload είναι πολύ μεγάλο (${(size/1e6).toFixed(2)} MB > 10.00 MB).\n` +
+          `Μείωσε features/απλούστευσε γεωμετρίες ή σπάσε σε 2 links.\n\n` +
+          `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
+        );
+        return;
+      }
+
+      // POST
+      const r = await fetch('/api/stories', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...state, ttlDays: 7 })
+      });
+
+      const text = await r.text();
+      let data = {};
+      try{ data = JSON.parse(text); }catch{}
+
+      if(!r.ok){
+        setBusy(false); setShareBusy(false);
+        const msg = data.error || data.message || text || 'Άγνωστο σφάλμα';
+        if(r.status === 403){
+          alert('403: Editor/API είναι κλειδωμένο για τοπική χρήση.\n' +
+                'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\nΛεπτομέρεια: ' + msg);
+        } else if (r.status === 413){
+          alert('413: State too large. Απλούστευσε γεωμετρίες ή σπάσε το έργο σε 2 links.');
+        } else {
+          alert(`Σφάλμα ${r.status}: ${msg}`);
+        }
+        return;
+      }
+
+      const link = (location.origin + (data.url || `/s/${data.id}`));
+      if(shareInput){
+        shareInput.value = link;
+        setShareBusy(false, 'Ready — Copy to clipboard');
+      }
+      setBusy(false);
+    }catch(e){
+      setBusy(false); setShareBusy(false);
+      alert('Σφάλμα δικτύου: ' + (e?.message || e));
+    }
+  });
 
   // Global ESC to close top panels
   document.addEventListener('keydown',(e)=>{
