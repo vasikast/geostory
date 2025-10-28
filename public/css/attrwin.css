@@ -74,7 +74,7 @@
 .win-title{ font-weight:600; }
 .win-actions{ display:flex; gap:6px; }
 .icon-btn{
-  background:transparent; color:var(--win-fg);
+  background:transparent; color: var(--win-fg);
   border:1px solid var(--win-border);
   width:28px; height:28px; border-radius:6px; cursor:pointer;
 }
@@ -94,7 +94,7 @@
 .win-toolbar .muted{ color:var(--win-muted); font-size:12px; }
 
 .btn{
-  background:#1a2028; color:var(--win-fg); border:1px solid var(--win-border);
+  background:#1a2028; color: var(--win-fg); border:1px solid var(--win-border);
   padding:8px 12px; border-radius:8px; cursor:pointer;
 }
 .btn:hover{ border-color:var(--accent); }
@@ -239,3 +239,9 @@ tbody tr:hover{ background:#0f141a; }
 /* Ghost preview animation for measure */
 .measure-ghost-line{ stroke-dasharray:6 6; animation: dash 1s linear infinite; }
 @keyframes dash{ to { stroke-dashoffset:-12; } }
+
+/* Accessibility: visible focus */
+.win :focus {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
