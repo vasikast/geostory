@@ -1344,7 +1344,7 @@
   refreshScale();
 
   // ---------- COMPACT GEOJSON HELPERS (για μικρότερο payload) ----------
-  function round6(n){ return Math.round(n*1e6)/1e6; }
+  function round6(n){ return Math.round(n*1e5)/1e5; }
   function processCoords(coords){
     if (typeof coords[0] === 'number'){
       // [lng, lat] ή [lng, lat, z]
@@ -1410,7 +1410,7 @@ const state = {
 // Προληπτικός έλεγχος μεγέθους (Render limit ~2 MB)
 const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
 const size = byteLen(payloadPreview);
-if (size > 2_000_000) {
+if (size > 10_000_000) {
   const perLayer = state.layers.map((L,i) => ({
     i: i+1,
     name: L.name,
