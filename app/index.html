@@ -5,25 +5,20 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>GeoVisual Stories — Editor</title>
 
-<!-- Preconnect to tile servers to reduce latency -->
-<link rel="preconnect" href="https://tile.openstreetmap.org" crossorigin>
-<link rel="preconnect" href="https://server.arcgisonline.com" crossorigin>
-<link rel="preconnect" href="https://unpkg.com" crossorigin>
-
 <!-- Leaflet -->
 <link rel="stylesheet"
   href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
   crossorigin="" />
-<script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
   integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
   crossorigin=""></script>
 
 <!-- (Προαιρετικά) GeoPackage reader για browser -->
-<script defer src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
 
 <!-- Turf.js για μετρήσεις -->
-<script defer src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <!-- Attribute/Share Window styles -->
 <link rel="stylesheet" href="/public/css/attrwin.css?v=4" />
@@ -66,7 +61,7 @@
   .dropzone{border:2px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);background:color-mix(in oklab, var(--panel) 90%, transparent)}
   .dropzone.dragover{border-color:var(--acc);color:var(--text);background:color-mix(in oklab, var(--panel) 70%, var(--acc) 10%)}
   .layers{display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto}
-  .layer{display:flex;justify-content:space-between;align-items:center;gap:8px;background:color-mix(in oklab, var(--panel) 85%, transparent);border:1px solid var(--line);border-radius:12px;padding:10px}
+  .layer{display:flex;justify-content:space-between;align-items:center;gap:8px;background:color-mix(in oklab, var(--panel) 85%, transparent);border:1px solid var(--line);border-radius:12px;padding:8px 10px}
   .layer .meta{display:flex;flex-direction:column}
   .layer .meta small{color:var(--muted)}
   .canvas{border:1px solid var(--line);border-radius:16px;overflow:hidden}
@@ -82,7 +77,7 @@
   .leaflet-bar a{ color: var(--text); }
 
   /* Style panel */
-  .style-panel{display:none;position:fixed;right:16px;top:16px;width:360px;max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+  .style-panel{display:none;position:fixed;right:16px;top:16px;width:360px;max-height:90vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.25);z-index:5000}
   .style-panel.active{display:block}
   .row{display:flex;gap:10px}
   .row>*{flex:1}
@@ -236,14 +231,12 @@
 </style>
 </head>
 <body>
-  <!-- Skip link for keyboard users -->
-  <a class="skip-link" href="#map" style="position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden" onfocus="this.style.left='12px';this.style.top='12px';this.style.width='auto';this.style.height='auto';">Παράβλεψη στο χάρτη</a>
   <div class="wrap">
     <header>
       <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
       <div class="actions">
-        <button id="themeToggle" type="button" class="btn" title="Theme: toggle light/dark" aria-pressed="false" aria-label="Switch theme">🌗 Theme</button>
-        <button id="btnGenerate" type="button" class="btn primary" title="Δημιούργησε δημόσιο link για προβολή" aria-label="Generate public link">Generate Link</button>
+        <button id="themeToggle" class="btn" title="Theme: toggle light/dark">🌗 Theme</button>
+        <button id="btnGenerate" class="btn primary" title="Δημιούργησε δημόσιο link για προβολή">Generate Link</button>
       </div>
     </header>
 
@@ -298,7 +291,7 @@
   <div id="stylePanel" class="style-panel">
     <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
       <h3 id="spTitle" style="margin:0;font-size:15px">Layer style</h3>
-      <button id="spClose" class="btn" title="Κλείσιμο" type="button">✕</button>
+      <button id="spClose" class="btn" title="Κλείσιμο">✕</button>
     </div>
     <div class="muted" id="spGeom" style="margin-top:4px"></div>
 
@@ -365,7 +358,6 @@
           <option value="blues">Blues</option>
           <option value="reds">Reds</option>
           <option value="greens">Greens</option>
-          <option value="grayscale">Grayscale</option>
         </select>
       </div>
 
@@ -378,8 +370,8 @@
     </div>
 
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button id="applyStyle" class="btn primary" title="Εφαρμογή συμβολογίας" type="button">Apply</button>
-      <button id="resetStyle" class="btn" title="Επαναφορά" type="button">Reset</button>
+      <button id="applyStyle" class="btn primary" title="Εφαρμογή συμβολογίας">Apply</button>
+      <button id="resetStyle" class="btn" title="Επαναφορά">Reset</button>
     </div>
   </div>
 
@@ -388,13 +380,13 @@
     <div class="win-header" id="attrwin-header">
       <div class="win-title"><span id="attrwin-title">Attribute Table</span></div>
       <div class="win-actions">
-        <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize" type="button">⬜</button>
-        <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close" type="button">✕</button>
+        <button class="icon-btn" id="attrwin-max" title="Maximize/Restore" aria-label="Maximize">⬜</button>
+        <button class="icon-btn danger" id="attrwin-close" title="Close" aria-label="Close">✕</button>
       </div>
     </div>
     <div class="win-toolbar">
       <input id="attrwin-search" type="search" placeholder="Αναζήτηση…" />
-      <button id="attrwin-csv" class="btn btn-sm" title="Export CSV" type="button">Export CSV</button>
+      <button id="attrwin-csv" class="btn btn-sm" title="Export CSV">Export CSV</button>
       <span id="attrwin-count" class="muted"></span>
     </div>
     <div class="win-body">
@@ -411,12 +403,12 @@
     <div class="win-header" id="sharewin-header">
       <div class="win-title"><span id="sharewin-title">Share Link</span></div>
       <div class="win-actions">
-        <button class="icon-btn danger" id="sharewin-close" title="Close" aria-label="Close" type="button">✕</button>
+        <button class="icon-btn danger" id="sharewin-close" title="Close" aria-label="Close">✕</button>
       </div>
     </div>
     <div class="win-toolbar">
       <input id="sharewin-url" type="search" placeholder="Link…" readonly />
-      <button id="sharewin-copy" class="btn btn-sm" title="Copy link" type="button">Copy</button>
+      <button id="sharewin-copy" class="btn btn-sm" title="Copy link">Copy</button>
       <span id="sharewin-status" class="muted"></span>
     </div>
     <div class="win-body" style="display:flex;align-items:center;justify-content:center;">
@@ -436,7 +428,6 @@
   </script>
 
 <script>
-document.addEventListener('DOMContentLoaded', function(){
   // ---------- THEME ----------
   (function(){
     const root = document.documentElement;
@@ -447,7 +438,6 @@ document.addEventListener('DOMContentLoaded', function(){
       root.setAttribute('data-theme', theme);
       localStorage.setItem(KEY, theme);
       btn.title = `Theme: ${theme}`;
-      btn.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
     }
     const saved = localStorage.getItem(KEY);
     setTheme(saved || 'dark');
@@ -458,7 +448,7 @@ document.addEventListener('DOMContentLoaded', function(){
   })();
 
   function escapeHtml(s){
-    return String(s ?? '').replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    return String(s ?? '').replace(/[&<>\"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
   }
 
   // ---------- Share Link Window ----------
@@ -729,32 +719,25 @@ document.addEventListener('DOMContentLoaded', function(){
     layers.forEach(L=>{
       const row=document.createElement('div'); row.className='layer';
       const meta=document.createElement('div'); meta.className='meta';
-      // use textContent to avoid unnecessary innerHTML
-      const titleDiv = document.createElement('div');
-      titleDiv.textContent = L.name;
-      const small = document.createElement('small');
-      small.textContent = L.kind;
-      meta.appendChild(titleDiv);
-      meta.appendChild(small);
-
+      meta.innerHTML = `<div>${escapeHtml(L.name)}</div><small>${L.kind}</small>`;
       const controls=document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
 
-      const eye=document.createElement('button'); eye.type='button'; eye.className='btn'; eye.textContent=L.visible?'👁':'🚫';
-      eye.setAttribute('aria-label', L.visible ? 'Hide layer' : 'Show layer');
-      eye.onclick=()=>{ L.visible=!L.visible; if(L.visible) L.leaflet.addTo(map); else map.removeLayer(L.leaflet); eye.textContent=L.visible?'👁':'🚫'; eye.setAttribute('aria-label', L.visible ? 'Hide layer' : 'Show layer'); };
+      const eye=document.createElement('button'); eye.className='btn'; eye.textContent=L.visible?'👁':'🚫';
+      eye.onclick=()=>{ L.visible=!L.visible; if(L.visible) L.leaflet.addTo(map); else map.removeLayer(L.leaflet); eye.textContent=L.visible?'👁':'🚫'; };
 
-      const tbl=document.createElement('button'); tbl.type='button'; tbl.className='btn'; tbl.textContent='🧾'; tbl.title='Attribute table'; tbl.setAttribute('aria-label','Open attribute table');
+      const tbl=document.createElement('button'); tbl.className='btn'; tbl.textContent='🧾'; tbl.title='Attribute table';
       tbl.onclick=()=> openAttrTable(L.id);
 
-      const sty=document.createElement('button'); sty.type='button'; sty.className='btn'; sty.textContent='🎨'; sty.title='Style'; sty.setAttribute('aria-label','Open style panel'); sty.onclick=()=> openStylePanel(L.id);
+      const sty=document.createElement('button'); sty.className='btn'; sty.textContent='🎨'; sty.title='Style'; sty.onclick=()=> openStylePanel(L.id);
 
-      const idBtn=document.createElement('button'); idBtn.type='button'; idBtn.className='btn'; idBtn.textContent='🛈'; idBtn.title='Identify (click features)'; idBtn.setAttribute('aria-label','Toggle identify mode');
+      const idBtn=document.createElement('button'); idBtn.className='btn'; idBtn.textContent='🛈'; idBtn.title='Identify (click features)';
       idBtn.onclick=()=> setIdentify(L.id, idBtn);
 
-      const del=document.createElement('button'); del.type='button'; del.className='btn'; del.textContent='🗑'; del.title='Delete'; del.setAttribute('aria-label','Delete layer');
+      const del=document.createElement('button'); del.className='btn'; del.textContent='🗑'; del.title='Delete';
       del.onclick=()=>{
         if(identify.active && identify.layerId === L.id){
           identify.active = false; identify.layerId = null;
+          identify.btnEl?.classList.remove('primary');
           document.getElementById('map').style.cursor = '';
         }
         map.removeLayer(L.leaflet); layers = layers.filter(x=>x.id!==L.id); renderList();
@@ -771,17 +754,12 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function addGeoJSON(name, gj){
-    // Enforce free-tier layer limit (3)
-    if(layers.length >= 3){
-      alert('Free plan: Μέγιστος αριθμός layers: 3. Διαγράψτε κάποιο layer για να προσθέσετε άλλο.');
-      return;
-    }
     const id='lyr_'+Math.random().toString(36).slice(2,9);
     const kind=detectKind(gj);
     const style = defaultStyle(kind);
     const leaflet = buildLeaflet({ id, gj, name, style, kind });
     leaflet.addTo(map);
-    try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){ }
+    try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){}
     layers.push({ id,name,gj,leaflet,visible:true,kind,style,fields:fieldsFrom(gj) });
     renderList();
   }
@@ -1020,11 +998,529 @@ document.addEventListener('DOMContentLoaded', function(){
 
     const headers = Array.from(thead.querySelectorAll('th'));
     const names = headers.map(h=>h.textContent.trim());
+    let fidIdx = names.indexOf('__fid');
+    if(fidIdx >= 0){ headers[fidIdx].style.display='none'; }
+    if(names.indexOf('Actions') === -1){
+      const th = document.createElement('th'); th.textContent = 'Actions';
+      thead.querySelector('tr').appendChild(th);
+    }
+    Array.from(tbody.querySelectorAll('tr')).forEach(tr=>{
+      if(tr.dataset.zoomAugmented === '1') return;
+      const cells = Array.from(tr.children);
+      if(fidIdx >= 0 && cells[fidIdx]) cells[fidIdx].style.display='none';
+      const fid = (fidIdx >= 0 && cells[fidIdx]) ? cells[fidIdx].textContent.trim() : null;
+      const td = document.createElement('td');
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-sm';
+      btn.textContent = '🔎 Zoom';
+      btn.title = 'Zoom to feature';
+      btn.addEventListener('click', (e)=>{ e.stopPropagation(); if(fid) zoomToFeature(__fidToFeature.get(fid)); });
+      td.appendChild(btn);
+      tr.appendChild(td);
+      tr.dataset.zoomAugmented = '1';
+    });
+  }
+  const __observer = new MutationObserver(()=> augmentAttrTableWithZoom());
+  __observer.observe(document.getElementById('attrwin'), { subtree:true, childList:true });
 
-    // rest of attribute table code remains unchanged
+  function openAttrTable(layerId){
+    const LYR = layers.find(x=>x.id===layerId);
+    if(!LYR) return;
+    const feats = (LYR.gj.features||[]);
+    __fidToFeature.clear();
+    const rows = feats.map((f,i)=>{
+      const fid = (f.id!=null ? String(f.id) : String(i+1));
+      __fidToFeature.set(fid, f);
+      return { __fid: fid, id: f.id ?? (i+1), ...f.properties };
+    });
+    window.openAttrWindow(rows, { title: `Attributes • ${escapeHtml(LYR.name)}` });
+    const cntEl = document.getElementById('attrwin-count');
+    if(cntEl) cntEl.textContent = `Rows: ${rows.length}`;
+    const srch = document.getElementById('attrwin-search');
+    if(srch && !srch.__enterBound){
+      srch.addEventListener('keydown',(e)=>{ if(e.key==='Enter'){ e.preventDefault(); srch.blur(); }});
+      srch.__enterBound = true;
+    }
+    setTimeout(augmentAttrTableWithZoom, 0);
   }
 
-});
+  // ---------- CUSTOM SCALE BAR (bottom-left με περιθώριο) ----------
+  const ScaleControl = L.Control.extend({
+    options: { position: 'bottomleft' },
+    onAdd: function(){
+      const box = L.DomUtil.create('div','scale-control leaflet-control');
+      box.innerHTML = `
+        <div class="scale-row">
+          <div id="scale-left">1:—</div>
+          <div id="scale-right" style="text-align:right">— m</div>
+        </div>
+        <div class="scale-graphic" id="scale-graphic"></div>
+      `;
+      this._box = box;
+      this._left = box.querySelector('#scale-left');
+      this._right = box.querySelector('#scale-right');
+      this._bar = box.querySelector('#scale-graphic');
+      L.DomEvent.disableClickPropagation(box);
+      return box;
+    },
+    onRemove(){},
+    update(){
+      if(!this._box) return;
+      const R = 6378137; // meters
+      const lat = map.getCenter().lat * Math.PI/180;
+      const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
+      const targetPx = 140;
+      const targetMeters = mPerPx * targetPx;
+      const nice = pickNice(targetMeters);
+      const px = nice / mPerPx;
+      this._bar.style.width = `${px}px`;
+      /* Τα κείμενα είναι κρυμμένα με CSS (.scale-row{display:none}) */
+    }
+  });
+  function pickNice(m){
+    const base = [1,2,5];
+    let scale = 1;
+    while(true){
+      for(const b of base){
+        const val = b*scale;
+        if(val >= m) return val;
+      }
+      scale *= 10;
+    }
+  }
+  const scaleCtl = new ScaleControl();
+  map.addControl(scaleCtl);
+  function refreshScale(){ scaleCtl.update(); }
+  map.on('move zoom', refreshScale);
+  refreshScale();
+
+  // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
+  function mPerPxAt(lat, zoom){
+    const R = 6378137; // meters
+    return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
+  }
+  function zoomForDenom(lat, denom){
+    const R = 6378137;
+    const DPI = (window.devicePixelRatio || 1) * 96;
+    const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+    const z = Math.log2(K / denom);
+    return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
+  }
+  function parseScaleInput(s){
+    if(!s) return null;
+    s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
+    s = s.replace(/[.\s,]/g,'');
+    if(/k$/.test(s)) s = String(parseFloat(s)*1000);
+    if(/m$/.test(s)) s = String(parseFloat(s)*1_000_000);
+    const n = Number(s);
+    if(!isFinite(n) || n<=0) return null;
+    return n;
+  }
+
+  const TopBarControl = L.Control.extend({
+    options: { position: 'topright' },
+    onAdd: function(){
+      const bar = L.DomUtil.create('div','topbar leaflet-control');
+
+      // scale box (αριστερά από measure)
+      const scaleBox = L.DomUtil.create('div','scalebox', bar);
+      const lbl = L.DomUtil.create('label','', scaleBox);
+      lbl.htmlFor = 'scaleInput'; lbl.textContent = '1:';
+      const inp = L.DomUtil.create('input','', scaleBox);
+      inp.id='scaleInput'; inp.type='text'; inp.placeholder='5000';
+      const go  = L.DomUtil.create('button','', scaleBox);
+      go.id='scaleGo'; go.type='button'; go.textContent='Go';
+      const lock = L.DomUtil.create('button','', scaleBox);
+      lock.id='scaleLock'; lock.type='button'; lock.textContent='Lock';
+
+      // measure group (δεξιά)
+      const mwrap = L.DomUtil.create('div','leaflet-control-measure', bar);
+      const mkBtn = (label, iconTxt) => {
+        const a = L.DomUtil.create('a','',mwrap);
+        a.href='#';
+        a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
+        a.title = label; a.setAttribute('aria-label', label);
+        return a;
+      };
+      const btnDist  = mkBtn('Measure line (click to add points • double click to finish • Esc to cancel)','📏');
+      const btnArea  = mkBtn('Measure area (click to add vertices • double click to finish • Esc to cancel)','▱');
+      const btnClear = mkBtn('Clear all measurements','🧹');
+
+      function setActive(b){
+        [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
+        b && b.classList.add('active');
+      }
+      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnDist); startMeasure('distance'); });
+      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnArea); startMeasure('area'); });
+      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(null); clearAllMeasurements(); });
+
+      // scale handlers
+      function applyScale(){
+        const n = parseScaleInput(inp.value);
+        if(!n){ alert('Δώσε έγκυρη κλίμακα π.χ. 5000, 1:25000, 10k, 1:2m'); return; }
+        const lat = map.getCenter().lat;
+        const z = zoomForDenom(lat, n);
+        map.setZoom(z);
+      }
+      go.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); applyScale(); });
+      inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); applyScale(); } });
+
+      // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
+      let isLocked = false;
+      function setLock(on){
+        isLocked = !!on;
+        lock.classList.toggle('active', isLocked);
+        if(isLocked){
+          map.scrollWheelZoom.disable();
+          map.touchZoom.disable();
+        }else{
+          map.scrollWheelZoom.enable();
+          map.touchZoom.enable();
+        }
+      }
+      lock.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); setLock(!isLocked); });
+
+      L.DomEvent.disableClickPropagation(bar);
+      return bar;
+    }
+  });
+  map.addControl(new TopBarControl());
+
+  // ---------- MEASURE CORE ----------
+  const measureLayer = L.featureGroup().addTo(map);
+  let measureMode = null, pts = [], sketch = null, ghost = null, finishing = false;
+  const mapEl = map.getContainer();
+  const hud = document.createElement('div'); hud.id='measureHud'; mapEl.appendChild(hud);
+  let isMeasuring = false;
+
+  function enablePanOnlyWithMiddleButton(){
+    if(!mapEl.__measureMouseDownBound){
+      mapEl.addEventListener('mousedown', (e)=>{
+        if(!isMeasuring) return;
+        if(e.button === 1){ map.dragging.enable(); } else { map.dragging.disable(); }
+      }, true);
+      mapEl.__measureMouseDownBound = true;
+    }
+    if(!mapEl.__measureMouseUpBound){
+      mapEl.addEventListener('mouseup', ()=>{
+        if(!isMeasuring) return;
+        map.dragging.disable();
+      }, true);
+      mapEl.__measureMouseUpBound = true;
+    }
+    if(!mapEl.__measureCtxMenuBound){
+      mapEl.addEventListener('contextmenu', (e)=>{
+        if(!isMeasuring) return;
+        e.preventDefault();
+      });
+      mapEl.__measureCtxMenuBound = true;
+    }
+  }
+  enablePanOnlyWithMiddleButton();
+
+  function setCursor(active){ mapEl.style.cursor = active ? 'crosshair' : ''; }
+  function kmFmt(km){ return (km >= 1) ? `${km.toFixed(2)} km` : `${(km*1000).toFixed(0)} m`; }
+  function areaFmt(m2){
+    if(m2 >= 1e6) return `${(m2/1e6).toFixed(2)} km²`;
+    if(m2 >= 1e4) return `${(m2/1e4).toFixed(2)} ha`;
+    return `${m2.toFixed(0)} m²`;
+  }
+  function clearGhost(){ if(ghost){ measureLayer.removeLayer(ghost); ghost=null; } }
+  function clearSketch(){ if(sketch){ measureLayer.removeLayer(sketch); sketch=null; } }
+  function stopHUD(){ hud.style.display='none'; hud.textContent=''; }
+  function moveHUD(e){
+    const rect = mapEl.getBoundingClientRect();
+    const ev = e.originalEvent || e;
+    hud.style.left = (ev.clientX - rect.left) + 'px';
+    hud.style.top  = (ev.clientY - rect.top) + 'px';
+  }
+
+  function updateGhost(latlng){
+    if(!measureMode || pts.length===0) return;
+    clearGhost();
+    const path = [...pts.map(([lng,lat])=>[lat,lng]), [latlng.lat, latlng.lng]];
+    if(measureMode==='distance'){
+      ghost = L.polyline(path, { color:'#00d3a7', weight:2, opacity:0.9, className:'measure-ghost-line', interactive:false });
+      const line = turf.lineString([...pts, [latlng.lng, latlng.lat]]);
+      const lenKm = turf.length(line, {units:'kilometers'});
+      hud.textContent = `Length: ${kmFmt(lenKm)}`;
+      hud.style.display='block';
+    }else{
+      ghost = L.polygon(path, { color:'#6aa6ff', weight:2, fillOpacity:.06, className:'measure-ghost-line', interactive:false });
+      if(pts.length>=2){
+        const poly = turf.polygon([[...pts, [latlng.lng, latlng.lat], pts[0]]]);
+        const a = turf.area(poly);
+        hud.textContent = `Area: ${areaFmt(a)}`;
+        hud.style.display='block';
+      }else{
+        hud.style.display='none';
+      }
+    }
+    ghost.addTo(measureLayer);
+  }
+
+  function updateSketch(){
+    if(!pts.length) return;
+    clearSketch();
+    if(measureMode==='distance'){
+      sketch = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3,interactive:false});
+    }else if(measureMode==='area'){
+      sketch = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:false});
+    }
+    sketch && sketch.addTo(measureLayer);
+  }
+
+  function startMeasure(mode){
+    cancelMeasure();
+    measureMode = mode; pts = [];
+    setCursor(true);
+    finishing = false;
+    hud.style.display='block';
+    isMeasuring = true;
+    map.dragging.disable();
+    map.on('mousemove', onMouseMove);
+  }
+
+  function bindResultClick(layer, latlng, content){
+    layer._measure = { latlng, content };
+    layer.on('click', ()=>{
+      const m = layer._measure;
+      if(!m) return;
+      L.popup({ closeButton:true })
+        .setLatLng(m.latlng)
+        .setContent(m.content)
+        .openOn(map);
+    });
+  }
+
+  function finishMeasure(){
+    if(finishing) return;
+    finishing = true;
+    if(!pts.length){ cancelMeasure(); finishing=false; return; }
+
+    let resultLayer = null, latlngForPopup = null, html = '';
+
+    if(measureMode==='distance' && pts.length>=2){
+      const line = turf.lineString(pts);
+      const lenKm = turf.length(line, {units:'kilometers'});
+      const mid = turf.along(line, lenKm/2, {units:'kilometers'}).geometry.coordinates;
+      latlngForPopup = L.latLng(mid[1], mid[0]);
+      html = `<strong>Length</strong><br>${kmFmt(lenKm)}`;
+      resultLayer = L.polyline(pts.map(([lng,lat])=>[lat,lng]), {color:'#00d3a7',weight:3,interactive:true});
+    }else if(measureMode==='area' && pts.length>=3){
+      const poly = turf.polygon([[...pts, pts[0]]]);
+      const a = turf.area(poly);
+      const c = turf.centroid(poly).geometry.coordinates;
+      latlngForPopup = L.latLng(c[1], c[0]);
+      html = `<strong>Area</strong><br>${areaFmt(a)}`;
+      resultLayer = L.polygon(pts.map(([lng,lat])=>[lat,lng]), {color:'#6aa6ff',weight:2,fillOpacity:.1,interactive:true});
+    }
+
+    clearGhost(); clearSketch();
+    if(resultLayer){
+      resultLayer.addTo(measureLayer);
+      L.popup({ closeButton:true })
+        .setLatLng(latlngForPopup)
+        .setContent(html)
+        .openOn(map);
+      bindResultClick(resultLayer, latlngForPopup, html);
+    }
+
+    stopHUD(); setCursor(false);
+    measureMode = null; pts = [];
+    isMeasuring = false;
+    map.dragging.enable();
+    setTimeout(()=> { finishing = false; }, 120);
+    map.off('mousemove', onMouseMove);
+  }
+
+  function cancelMeasure(){
+    pts = []; clearGhost(); clearSketch(); stopHUD();
+    setCursor(false); measureMode = null; finishing = false;
+    map.off('mousemove', onMouseMove); isMeasuring = false; map.dragging.enable();
+  }
+
+  function clearAllMeasurements(){
+    cancelMeasure(); measureLayer.clearLayers(); map.closePopup();
+  }
+
+  function onMouseMove(e){ if(!measureMode) return; moveHUD(e); updateGhost(e.latlng); }
+
+  map.on('click', (e)=>{
+    if(!measureMode) return;
+    if(e.originalEvent && e.originalEvent.detail > 1) return;
+    const ll = e.latlng; pts.push([ll.lng, ll.lat]); updateSketch();
+  });
+
+  if(!mapEl.__dblFinishBound){
+    mapEl.addEventListener('dblclick', (ev)=>{
+      if(!measureMode) return;
+      ev.preventDefault(); ev.stopPropagation();
+      const ll = map.mouseEventToLatLng(ev);
+      const cur = [ll.lng, ll.lat];
+      const last = pts[pts.length-1];
+      const isSame = last && map.distance(L.latLng(last[1],last[0]), ll) < 2;
+      if(!isSame) pts.push(cur);
+      updateSketch(); finishMeasure();
+    }, true);
+    mapEl.__dblFinishBound = true;
+  }
+
+  L.DomEvent.on(document, 'keydown', (e)=>{ if(e.key==='Escape') cancelMeasure(); });
+
+  // ---------- COMPACT HELPERS ----------
+  function round6(n){ return Math.round(n*1e5)/1e5; }
+  function processCoords(coords){
+    if (typeof coords[0] === 'number'){
+      if (coords.length === 2) return [round6(coords[0]), round6(coords[1])];
+      if (coords.length >= 3) return [round6(coords[0]), round6(coords[1]), round6(coords[2])];
+    }
+    return coords.map(processCoords);
+  }
+  function compactGeometry(geom){
+    if(!geom) return geom;
+    const { type, coordinates } = geom;
+    if(!coordinates) return geom;
+    return { type, coordinates: processCoords(coordinates) };
+  }
+  function stripEmpty(obj){
+    if (obj == null) return obj;
+    const out = {};
+    for (const [k,v] of Object.entries(obj)){
+      if (v === null || v === undefined) continue;
+      out[k] = v;
+    }
+    return out;
+  }
+  function compactFeature(feat){
+    return { type: 'Feature', id: feat.id, properties: stripEmpty(feat.properties || {}), geometry: compactGeometry(feat.geometry) };
+  }
+  function compactGeoJSON(fc){
+    const feats = (fc.features || []).map(compactFeature);
+    return { type:'FeatureCollection', features:feats };
+  }
+  function byteLen(str){ return new Blob([str]).size; }
+
+  // ---------- GENERATE LINK ----------
+  document.getElementById('btnGenerate').addEventListener('click', async ()=>{
+    const openShare = window.__openShareWindow;
+    const shareInput = document.getElementById('sharewin-url');
+    const shareStatus = document.getElementById('sharewin-status');
+    const shareCopy = document.getElementById('sharewin-copy');
+    const btn = document.getElementById('btnGenerate');
+
+    function setBusy(on){
+      btn.disabled = !!on;
+      btn.textContent = on ? 'Generating…' : 'Generate Link';
+    }
+    function setShareBusy(on, msg){
+      if(!shareInput || !shareCopy || !shareStatus) return;
+      if(on){
+        shareInput.value = '';
+        shareInput.placeholder = 'Generating…';
+        shareCopy.disabled = true;
+        shareStatus.textContent = msg || 'Generating…';
+      }else{
+        shareInput.placeholder = 'Link…';
+        shareCopy.disabled = false;
+        shareStatus.textContent = msg || '';
+      }
+    }
+
+    try{
+      if(openShare) openShare('');
+      setShareBusy(true, 'Generating…');
+      setBusy(true);
+
+      if(layers.length === 0){
+        setBusy(false); setShareBusy(false);
+        alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.');
+        return;
+      }
+      if(layers.length > 3){
+        setBusy(false); setShareBusy(false);
+        alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.');
+        return;
+      }
+
+      const state = {
+        title: document.getElementById('title').value || 'Untitled',
+        description: document.getElementById('desc').value || '',
+        basemap: currentBase,
+        center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
+        zoom: map.getZoom(),
+        layers: layers.map(L=>({
+          name: L.name,
+          gj: compactGeoJSON(L.gj),
+          visible: L.visible,
+          kind: L.kind,
+          style: L.style
+        }))
+      };
+
+      const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
+      const size = byteLen(payloadPreview);
+      if (size > 10_000_000) {
+        const perLayer = state.layers.map((L,i) => ({
+          i: i+1,
+          name: L.name,
+          features: (L.gj.features || []).length,
+        }));
+        setBusy(false); setShareBusy(false);
+        alert(
+          `Το payload είναι πολύ μεγάλο (${(size/1e6).toFixed(2)} MB > 10.00 MB).\n` +
+          `Μείωσε features/απλούστευσε γεωμετρίες ή σπάσε σε 2 links.\n\n` +
+          `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
+        );
+        return;
+      }
+
+      const r = await fetch('/api/stories', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ ...state, ttlDays: 7 })
+      });
+
+      const text = await r.text();
+      let data = {};
+      try{ data = JSON.parse(text); }catch{}
+
+      if(!r.ok){
+        setBusy(false); setShareBusy(false);
+        const msg = data.error || data.message || text || 'Άγνωστο σφάλμα';
+        if(r.status === 403){
+          alert('403: Editor/API είναι κλειδωμένο για τοπική χρήση.\n' +
+                'Σε Render βάλε ALLOW_EDITOR_NETWORK=1 αν θέλεις δημόσια πρόσβαση.\n\nΛεπτομέρεια: ' + msg);
+        } else if (r.status === 413){
+          alert('413: State too large. Απλούστευσε γεωμετρίες ή σπάσε το έργο σε 2 links.');
+        } else {
+          alert(`Σφάλμα ${r.status}: ${msg}`);
+        }
+        return;
+      }
+
+      const link = (location.origin + (data.url || `/s/${data.id}`));
+      if(shareInput){
+        shareInput.value = link;
+        setShareBusy(false, 'Ready — Copy to clipboard');
+      }
+      setBusy(false);
+    }catch(e){
+      setBusy(false); setShareBusy(false);
+      alert('Σφάλμα δικτύου: ' + (e?.message || e));
+    }
+  });
+
+  // ESC κλείσιμο panels
+  document.addEventListener('keydown',(e)=>{
+    if(e.key!=='Escape') return;
+    const spEl = document.getElementById('stylePanel');
+    if(spEl && spEl.classList.contains('active')){ document.getElementById('spClose')?.click(); return; }
+    const sh = document.getElementById('sharewin');
+    if(sh && !sh.classList.contains('hidden')){ document.getElementById('sharewin-close')?.click(); return; }
+    const attr = document.getElementById('attrwin');
+    if(attr && !attr.classList.contains('hidden')){ document.getElementById('attrwin-close')?.click(); }
+  });
 </script>
 </body>
 </html>
