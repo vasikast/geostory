@@ -199,6 +199,53 @@
 
   /* Custom SCALE control box (graphic only + caption under the bar) */
   .scale-control {
+    background: var(--panel);
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 6px 8px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.18);
+    display: inline-block;
+  }
+
+  .scale-labels {
+    display: block;
+    position: relative;
+    height: 14px;
+    margin-bottom: 4px;
+    text-align: center;
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .scale-labels div {
+    position: absolute;
+    top: 0;
+    transform: translateX(-50%);
+  }
+  .scale-labels div:first-child {
+    left: 0%;
+    transform: translateX(0%);
+    text-align: left;
+  }
+  .scale-labels div:nth-child(2) {
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+  }
+  .scale-labels div:last-child {
+    left: 100%;
+    transform: translateX(-100%);
+    text-align: right;
+  }
+
+  .scale-bar {
+    position: relative;
+    height: 10px;
+    border: 1px solid #000;
+  }
+
+  .scale-control {
     background:#fff;
     color:#000;
     border:1px solid #000;
@@ -208,7 +255,9 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.18);
     min-width: 120px;
   }
+
   .scale-row{ display:none; } /* keep hidden text above the bar */
+
   .scale-control .scale-graphic {
     position: relative;
     height: 8px;
@@ -216,9 +265,24 @@
     margin-top:6px;
     background: linear-gradient(90deg, #000 0 50%, #fff 50% 100%);
   }
-  .scale-control .scale-graphic::after{ content:''; position:absolute; inset:0; pointer-events:none; }
-  .scale-caption{ margin-top:4px; text-align:right; font-size:12px; }
-  .leaflet-bottom.leaflet-left { margin: 0 0 14px 14px; }
+
+  .scale-control .scale-graphic::after {
+    content:'';
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+  }
+
+  .scale-caption {
+    margin-top:4px;
+    text-align:right;
+    font-size:12px;
+  }
+
+  .leaflet-bottom.leaflet-left {
+    margin: 0 0 14px 14px;
+  }
+
 
   /* HUD (live μέτρηση) δίπλα στον κέρσορα */
   #measureHud{
@@ -1051,65 +1115,102 @@
     setTimeout(augmentAttrTableWithZoom, 0);
   }
 
-  // ---------- CUSTOM SCALE BAR (bottom-left με περιθώριο) ----------
-  const ScaleControl = L.Control.extend({
-    options: { position: 'bottomleft' },
-    onAdd: function(){
-      const box = L.DomUtil.create('div','scale-control leaflet-control');
-      box.innerHTML = `
-        <div class="scale-row">
-          <div id="scale-left">1:—</div>
-          <div id="scale-right" style="text-align:right">— m</div>
-        </div>
-        <div class="scale-graphic" id="scale-graphic"></div>
-        <div class="scale-caption" id="scale-caption">—</div>
-      `;
-      this._box = box;
-      this._left = box.querySelector('#scale-left');
-      this._right = box.querySelector('#scale-right');
-      this._bar = box.querySelector('#scale-graphic');
-      this._cap = box.querySelector('#scale-caption');
-      L.DomEvent.disableClickPropagation(box);
-      return box;
-    },
-    onRemove(){},
-    update(){
-      if(!this._box) return;
-      const R = 6378137; // meters
-      const lat = map.getCenter().lat * Math.PI/180;
-      const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
-      const targetPx = 140;
-      const targetMeters = mPerPx * targetPx;
-      const nice = pickNice(targetMeters);
-      const px = nice / mPerPx;
-      this._bar.style.width = `${px}px`;
-      if(this._cap) this._cap.textContent = formatMeters(nice);
-      /* Τα κείμενα πάνω από τη μπάρα είναι κρυμμένα με CSS (.scale-row{display:none}) */
-    }
-  });
-  function pickNice(m){
-    const base = [1,2,5];
-    let scale = 1;
-    while(true){
-      for(const b of base){
-        const val = b*scale;
-        if(val >= m) return val;
-      }
-      scale *= 10;
-    }
+// ---------- CUSTOM SCALE BAR (bottom-left με divisions + labels πάνω + μονάδα δεξιά) ----------
+const ScaleControl = L.Control.extend({
+  options: { position: 'bottomleft' },
+  onAdd: function(){
+    const box = L.DomUtil.create('div','scale-control leaflet-control');
+    box.innerHTML = `
+      <div class="scale-labels" id="scale-labels"></div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <div class="scale-bar" id="scale-bar"></div>
+        <div id="scale-unit" style="font-size:11px;">m</div>
+      </div>
+    `;
+    this._box = box;
+    this._bar = box.querySelector('#scale-bar');
+    this._labels = box.querySelector('#scale-labels');
+    this._unit = box.querySelector('#scale-unit');
+    L.DomEvent.disableClickPropagation(box);
+    return box;
+  },
+  onRemove(){},
+  update(){
+    if(!this._box) return;
+    const R = 6378137;
+    const lat = map.getCenter().lat * Math.PI/180;
+    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
+    const targetPx = 200;
+    const targetMeters = mPerPx * targetPx;
+    const nice = pickNice(targetMeters);
+    const px = nice / mPerPx;
+    const divisions = 2, subdivisions = 2;
+    const divWidth = px / divisions;
+
+    // update main bar
+    this._bar.style.width = `${px}px`;
+    this._bar.style.height = '10px';
+    this._bar.style.border = '1px solid #000';
+    this._bar.style.background = `
+      repeating-linear-gradient(90deg,
+        #000 0, #000 ${divWidth/2}px,
+        #fff ${divWidth/2}px, #fff ${divWidth}px
+      )
+    `;
+
+    // update labels (πάνω από το bar)
+    this._labels.innerHTML = '';
+  for(let i=0;i<=divisions;i++){
+  const labelVal = nice * (i/divisions);
+  const div = document.createElement('div');
+  div.style.position = 'absolute';
+
+  // Διορθωτικό offset για το μεσαίο label (λίγο πιο αριστερά)
+  let offset = (i/divisions)*100;
+  if (i === 1) offset -= 1; // 1% αριστερά
+  div.style.left = `${offset}%`;
+
+  div.style.transform = i===0 ? 'translateX(-0%)' : (i===divisions ? 'translateX(-100%)' : 'translateX(-50%)');
+  div.style.fontSize = '11px';
+  div.style.whiteSpace = 'nowrap';
+  div.textContent = formatMeters(labelVal,false);
+  this._labels.appendChild(div);
+}
+
+    this._labels.style.position='relative';
+    this._labels.style.height='14px';
+    this._labels.style.marginBottom='2px';
+
+    // μονάδα δεξιά (m ή km)
+    this._unit.textContent = (nice >= 1000) ? 'km' : 'm';
   }
-  function formatMeters(m){
-    if(m >= 1000){
-      const km = m/1000;
-      return (km >= 10) ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
+});
+
+function pickNice(m){
+  const base=[1,2,5];
+  let scale=1;
+  while(true){
+    for(const b of base){
+      const val=b*scale;
+      if(val>=m) return val;
     }
-    return `${Math.round(m)} m`;
+    scale*=10;
   }
-  const scaleCtl = new ScaleControl();
-  map.addControl(scaleCtl);
-  function refreshScale(){ scaleCtl.update(); }
-  map.on('move zoom', refreshScale);
-  refreshScale();
+}
+function formatMeters(m,unit=true){
+  if(m>=1000){
+    const km=m/1000;
+    return unit ? `${(km>=10)?Math.round(km):km.toFixed(1)} km` : `${(km>=10)?Math.round(km):km.toFixed(1)}`;
+  }
+  return unit ? `${Math.round(m)} m` : `${Math.round(m)}`;
+}
+
+const scaleCtl=new ScaleControl();
+map.addControl(scaleCtl);
+function refreshScale(){ scaleCtl.update(); }
+map.on('move zoom',refreshScale);
+refreshScale();
+
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
   function mPerPxAt(lat, zoom){
