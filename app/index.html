@@ -278,6 +278,21 @@
   #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
   #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
   #attrwin *, #sharewin * { user-select: auto !important; }
+  /* Zoom controls: διακριτικό pulse όταν πατάς */
+.leaflet-control-zoom a{
+  position: relative;
+  transition: transform .12s ease, box-shadow .18s ease, filter .18s ease;
+}
+
+.leaflet-control-zoom a.pulse{
+  animation: zoomTap .18s ease-out;
+}
+
+@keyframes zoomTap{
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
 </style>
 </head>
 <body>
@@ -1647,6 +1662,30 @@ map.addControl(scaleCtl);
     const attr = document.getElementById('attrwin');
     if(attr && !attr.classList.contains('hidden')){ document.getElementById('attrwin-close')?.click(); }
   });
+</script>
+  <script>
+// Zoom κουμπιά: μικρό "παλμικό" animation στο πάτημα
+(function(){
+  function pulse(el){
+    if(!el) return;
+    el.classList.remove('pulse'); // restart animation
+    void el.offsetWidth; // reflow trick
+    el.classList.add('pulse');
+  }
+
+  // Mouse/Touch
+  document.addEventListener('pointerdown', (e)=>{
+    const a = e.target.closest('.leaflet-control-zoom a');
+    if(a) pulse(a);
+  }, {capture:true});
+
+  // Keyboard (Enter/Space πάνω στα κουμπιά)
+  document.addEventListener('keydown', (e)=>{
+    if(e.key !== 'Enter' && e.key !== ' ') return;
+    const a = document.activeElement?.closest?.('.leaflet-control-zoom a');
+    if(a) pulse(a);
+  }, {capture:true});
+})();
 </script>
 </body>
 </html>
