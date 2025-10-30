@@ -191,7 +191,13 @@
   }
   #scaleLock.active{ outline:2px solid var(--acc); }
 
-  /* Custom SCALE control box (graphic only) */
+  /* Identify active emphasis */
+  .btn.identify-on{
+    outline:2px solid var(--acc);
+    box-shadow:0 0 0 3px color-mix(in oklab, var(--acc) 30%, transparent);
+  }
+
+  /* Custom SCALE control box (graphic only + caption under the bar) */
   .scale-control {
     background:#fff;
     color:#000;
@@ -202,7 +208,7 @@
     box-shadow: 0 4px 14px rgba(0,0,0,.18);
     min-width: 120px;
   }
-  .scale-row{ display:none; } /* 🔒 Κρύβει τα κείμενα πάνω από τη μπάρα */
+  .scale-row{ display:none; } /* keep hidden text above the bar */
   .scale-control .scale-graphic {
     position: relative;
     height: 8px;
@@ -211,6 +217,7 @@
     background: linear-gradient(90deg, #000 0 50%, #fff 50% 100%);
   }
   .scale-control .scale-graphic::after{ content:''; position:absolute; inset:0; pointer-events:none; }
+  .scale-caption{ margin-top:4px; text-align:right; font-size:12px; }
   .leaflet-bottom.leaflet-left { margin: 0 0 14px 14px; }
 
   /* HUD (live μέτρηση) δίπλα στον κέρσορα */
@@ -608,21 +615,21 @@
   function setIdentify(layerId, btnEl){
     if(identify.active && identify.layerId === layerId){
       identify.active = false; identify.layerId = null;
-      btnEl?.classList.remove('primary');
+      btnEl?.classList.remove('primary','identify-on');
       document.getElementById('map').style.cursor = '';
       return;
     }
-    if(identify.btnEl) identify.btnEl.classList.remove('primary');
+    if(identify.btnEl) identify.btnEl.classList.remove('primary','identify-on');
     identify.active = true;
     identify.layerId = layerId;
     identify.btnEl = btnEl || null;
-    btnEl?.classList.add('primary');
+    btnEl?.classList.add('primary','identify-on');
     document.getElementById('map').style.cursor = 'help';
   }
   document.addEventListener('keydown', (e)=>{
     if(e.key === 'Escape' && identify.active){
       identify.active = false; identify.layerId = null;
-      identify.btnEl?.classList.remove('primary');
+      identify.btnEl?.classList.remove('primary','identify-on');
       document.getElementById('map').style.cursor = '';
     }
   });
@@ -737,7 +744,7 @@
       del.onclick=()=>{
         if(identify.active && identify.layerId === L.id){
           identify.active = false; identify.layerId = null;
-          identify.btnEl?.classList.remove('primary');
+          identify.btnEl?.classList.remove('primary','identify-on');
           document.getElementById('map').style.cursor = '';
         }
         map.removeLayer(L.leaflet); layers = layers.filter(x=>x.id!==L.id); renderList();
@@ -1055,11 +1062,13 @@
           <div id="scale-right" style="text-align:right">— m</div>
         </div>
         <div class="scale-graphic" id="scale-graphic"></div>
+        <div class="scale-caption" id="scale-caption">—</div>
       `;
       this._box = box;
       this._left = box.querySelector('#scale-left');
       this._right = box.querySelector('#scale-right');
       this._bar = box.querySelector('#scale-graphic');
+      this._cap = box.querySelector('#scale-caption');
       L.DomEvent.disableClickPropagation(box);
       return box;
     },
@@ -1074,7 +1083,8 @@
       const nice = pickNice(targetMeters);
       const px = nice / mPerPx;
       this._bar.style.width = `${px}px`;
-      /* Τα κείμενα είναι κρυμμένα με CSS (.scale-row{display:none}) */
+      if(this._cap) this._cap.textContent = formatMeters(nice);
+      /* Τα κείμενα πάνω από τη μπάρα είναι κρυμμένα με CSS (.scale-row{display:none}) */
     }
   });
   function pickNice(m){
@@ -1087,6 +1097,13 @@
       }
       scale *= 10;
     }
+  }
+  function formatMeters(m){
+    if(m >= 1000){
+      const km = m/1000;
+      return (km >= 10) ? `${Math.round(km)} km` : `${km.toFixed(1)} km`;
+    }
+    return `${Math.round(m)} m`;
   }
   const scaleCtl = new ScaleControl();
   map.addControl(scaleCtl);
