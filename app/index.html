@@ -1101,15 +1101,18 @@ function pickNice(m) {
 function formatMeters(m, unit = true) {
   if (m >= 1000) {
     const km = m / 1000;
-    // εμφάνιση έως 2 δεκαδικών, χωρίς περιττά μηδενικά
     let txt = parseFloat(km.toFixed(2)).toString();
     return unit ? `${txt} Km` : txt;
+  } else if (m >= 10) {
+    // Για μέτρα πάνω από 10, δείξε έως 1 δεκαδικό (π.χ. 12.5)
+    let txt = parseFloat(m.toFixed(1)).toString();
+    return unit ? `${txt} m` : txt;
+  } else {
+    // Για πολύ μικρές τιμές, κράτα 2 δεκαδικά
+    let txt = parseFloat(m.toFixed(2)).toString();
+    return unit ? `${txt} m` : txt;
   }
-  // για μέτρα κράτα ακέραιο
-  return unit ? `${Math.round(m)} m` : String(Math.round(m));
 }
-
-
 
 const ScaleControl = L.Control.extend({
   options: { position: 'bottomleft' },
@@ -1160,34 +1163,44 @@ const ScaleControl = L.Control.extend({
     ')';
 
   // labels επάνω (0, 25%, 50%, 100%)
-  this._labels.innerHTML = '';
-  const labels = [
-    { pos: 0,    val: 0 },
-    { pos: 0.25, val: nice * 0.25 },
-    { pos: 0.5,  val: nice * 0.5 },
-    { pos: 1,    val: nice }
-  ];
-  for (const lbl of labels) {
-    const div = document.createElement('div');
-    div.style.position = 'absolute';
-    div.style.left = `${lbl.pos * 100}%`;
-    if (lbl.pos === 0) {
-      div.style.transform = 'translateX(0%)';
-      div.style.textAlign = 'left';
-    } else if (lbl.pos === 1) {
-      div.style.transform = 'translateX(-100%)';
-      div.style.textAlign = 'right';
-    } else {
-      div.style.transform = 'translateX(-50%)'; // ακριβές κέντρο πάνω στη γραμμή
-      div.style.textAlign = 'center';
-    }
-    div.textContent = formatMeters(lbl.val, false);
-    this._labels.appendChild(div);
+  // labels επάνω (0, 25%, 50%, 100%) με ακριβές κέντρο επάνω στις γραμμές
+// --- ΑΚΡΙΒΗΣ ΤΟΠΟΘΕΤΗΣΗ LABELS ΠΑΝΩ ΣΤΙΣ ΤΟΜΕΣ (0%,25%,50%,75%,100%) ---
+this._labels.innerHTML = '';
+// Τα labels να "μετράνε" στο εσωτερικό της μπάρας (px-2 για τα borders)
+this._labels.style.position = 'relative';
+this._labels.style.width = `${px - 2}px`;
+this._labels.style.marginLeft = '1px';
+this._labels.style.height = '14px';
+this._labels.style.marginBottom = '2px';
+
+const ticks = [
+  { pos: 0,    val: 0 },
+  { pos: 0.25, val: nice * 0.25 },
+  { pos: 0.5,  val: nice * 0.5 },
+  { pos: 1,    val: nice }
+];
+
+for (const t of ticks) {
+  const div = document.createElement('div');
+  div.style.position = 'absolute';
+  div.style.left = `${t.pos * 100}%`;
+
+  // άκρα "κολλητά", μεσαία κεντραρισμένα ακριβώς στη τομή
+  if (t.pos === 0) {
+    div.style.transform = 'translateX(0%)';
+    div.style.textAlign = 'left';
+  } else if (t.pos === 1) {
+    div.style.transform = 'translateX(-100%)';
+    div.style.textAlign = 'right';
+  } else {
+    div.style.transform = 'translateX(-50%)';
+    div.style.textAlign = 'center';
   }
 
-  this._labels.style.position = 'relative';
-  this._labels.style.height = '14px';
-  this._labels.style.marginBottom = '2px';
+  div.textContent = formatMeters(t.val, false);
+  this._labels.appendChild(div);
+}
+
 
   // Μονάδα δεξιά — πάντα «Km» (Κ κεφαλαίο, m μικρό), χωρίς bold, πάντα μαύρο
   this._unit.textContent = nice >= 1000 ? 'Km' : 'm';
