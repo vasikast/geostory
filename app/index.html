@@ -132,6 +132,82 @@
   :root[data-theme="dark"] .leaflet-popup-tip { background:#ffffff; color:#0b1020; border-color:#ffffff; }
   .leaflet-popup-content { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, Arial; }
 
+  /* North Arrow — modern glass card */
+:root{
+  --north-size: 96px;   /* πριν 72px */
+  --north-ring: 4px;
+}
+
+.leaflet-control.north-control{
+  padding: 8px;
+  border-radius: 16px;
+  background: color-mix(in oklab, var(--panel) 78%, transparent);
+  border: 1px solid var(--line);
+  box-shadow: 0 10px 30px rgba(0,0,0,.22);
+  backdrop-filter: saturate(1.1) blur(8px);
+  user-select: none;
+}
+
+.north-card{
+  position: relative;
+  width: var(--north-size);
+  height: var(--north-size);
+  display: grid;
+  place-items: center;
+}
+  .north-card::after{
+  content:"";
+  position:absolute; inset:-6px;
+  border-radius:20px;
+  pointer-events:none;
+  box-shadow:0 0 0 0 rgba(0,0,0,0);
+  transition: box-shadow .25s ease;
+}
+.north-card:hover::after{
+  box-shadow:0 10px 28px rgba(0,0,0,.18);
+}
+
+.north-N{
+  position: absolute;
+  top: 2px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .14em;
+  color: var(--text);
+  opacity: .9;
+}
+
+.north-svg{ width: 100%; height: 100%; display: block; }
+
+.north-ring{
+  fill: none;
+  stroke: url(#north-ring-grad);
+  stroke-width: var(--north-ring);
+}
+
+.north-face{
+  fill: color-mix(in oklab, var(--panel) 94%, transparent);
+  stroke: color-mix(in oklab, var(--line) 90%, transparent);
+  stroke-width: 1;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,.18));
+}
+
+.north-needle-body{ fill: var(--acc); }
+.north-needle-top{  fill: var(--acc2); }
+.north-hub{
+  fill: var(--text);
+  opacity: .95;
+}
+
+.north-card:hover{
+  transform: translateY(-1px);
+  transition: transform .15s ease, filter .25s ease;
+}
+
+@media (max-width: 600px){
+  :root{ --north-size: 64px; }
+}
+
   /* ---------- IDENTIFY POPUP (Excel-like) ---------- */
   :root[data-theme="light"] .identify-popup .leaflet-popup-content-wrapper,
   :root[data-theme="light"] .identify-popup .leaflet-popup-tip{
@@ -622,6 +698,85 @@
   const map = L.map('map',{zoomControl:true,attributionControl:true});
   map.doubleClickZoom.disable();
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+  // --- North Arrow Control (modern) ---
+const NorthControl = L.Control.extend({
+  options:{ position: 'topleft' }, // άλλαξε σε 'topright' αν θέλεις
+  onAdd(){
+    const div = L.DomUtil.create('div', 'leaflet-control north-control');
+    const card = L.DomUtil.create('div', 'north-card', div);
+    const nLab = L.DomUtil.create('div', 'north-N', card);
+    nLab.textContent = 'N';
+
+card.innerHTML += `
+  <svg viewBox="0 0 100 100" class="north-svg" aria-hidden="true">
+    <defs>
+      <!-- Gradient για δαχτυλίδι -->
+      <linearGradient id="north-ring-grad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%"   stop-color="var(--acc)"/>
+        <stop offset="100%" stop-color="var(--acc2)"/>
+      </linearGradient>
+
+      <!-- Γυαλάδα -->
+      <radialGradient id="north-gloss-grad" cx="50%" cy="30%" r="60%">
+        <stop offset="0%"  stop-color="#fff" stop-opacity="0.45"/>
+        <stop offset="60%" stop-color="#fff" stop-opacity="0.05"/>
+        <stop offset="100%" stop-color="#fff" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- Μαλακή σκιά για ticks -->
+      <filter id="north-soft" x="-20%" y="-20%" width="140%" height="140%">
+        <feDropShadow dx="0" dy="0" stdDeviation="0.6" flood-color="rgba(0,0,0,.35)"/>
+      </filter>
+    </defs>
+
+    <!-- Δαχτυλίδι -->
+    <circle class="north-ring" cx="50" cy="50" r="46"/>
+
+    <!-- Πρόσωπο πυξίδας -->
+    <circle class="north-face" cx="50" cy="50" r="38"/>
+
+    <!-- Cardinal ticks (0/90/180/270) -->
+    <g stroke="currentColor" stroke-width="1.6" opacity=".6" filter="url(#north-soft)">
+      <!-- 0° -->
+      <line x1="50" y1="12" x2="50" y2="20"/>
+      <!-- 180° -->
+      <line x1="50" y1="80" x2="50" y2="88"/>
+      <!-- 90° -->
+      <line x1="80" y1="50" x2="88" y2="50"/>
+      <!-- 270° -->
+      <line x1="12" y1="50" x2="20" y2="50"/>
+    </g>
+
+    <!-- Ενδιάμεσα marks (45°, 135°, 225°, 315°) -->
+    <g stroke="currentColor" stroke-width="1" opacity=".35">
+      ${[45,135,225,315].map(a=>{
+        const rad = a*Math.PI/180, r1=35, r2=38;
+        const x1=50+Math.cos(rad)*r1, y1=50+Math.sin(rad)*r1;
+        const x2=50+Math.cos(rad)*r2, y2=50+Math.sin(rad)*r2;
+        return `<line x1="${x1.toFixed(2)}" y1="${y1.toFixed(2)}" x2="${x2.toFixed(2)}" y2="${y2.toFixed(2)}"/>`;
+      }).join('')}
+    </g>
+
+    <!-- Δίχρωμη βελόνα -->
+    <g class="north-needle">
+      <path class="north-needle-body" d="M50 12 L59 50 L50 88 L41 50 Z"/>
+      <path class="north-needle-top"  d="M50 12 L59 50 L50 50 L41 50 Z"/>
+      <circle class="north-hub" cx="50" cy="50" r="3.4"/>
+    </g>
+
+    <!-- Γυαλάδα επάνω -->
+    <circle cx="50" cy="50" r="38" fill="url(#north-gloss-grad)"/>
+  </svg>
+`;
+
+
+    // Να μην κλέβει events από τον χάρτη
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+    return div;
+  }
+});
+map.addControl(new NorthControl());
   document.getElementById('basemap').value = currentBase;
 
   // ---------- STATE ----------
