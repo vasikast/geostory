@@ -21,7 +21,7 @@
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
 <!-- Attribute/Share Window styles -->
-<link rel="stylesheet" href="/public/css/attrwin.css?v=4" />
+<link rel="stylesheet" href="public/css/attrwin.css?v=4" />
 
 <style>
   /* THEME VARIABLES */
@@ -370,6 +370,26 @@
   100% { transform: scale(1); }
 }
 </style>
+<style>
+/* Fallback: επιβάλλει πλωτά παράθυρα ακόμα κι αν δεν φορτώσει το attrwin.css */
+.win{
+  position: fixed;
+  bottom: 16px; left: 16px;
+  max-width: 70vw; max-height: 60vh;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+  z-index: 100000;
+}
+#sharewin{ left: auto; right: 16px; }
+.win.hidden{ display: none !important; }
+.win-header{ display:flex; align-items:center; justify-content:space-between; }
+.win-body{ overflow:auto; }
+.win-resize-handle{
+  position:absolute; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize;
+}
+</style>
 </head>
 <body>
   <div class="wrap">
@@ -559,8 +579,8 @@
   </div>
 
   <!-- Import shared attr window -->
-  <script type="module">
-    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=4';
+<script type="module">
+  import { openAttrWindow, setAttrData } from 'public/js/attrwin.js?v=4';
     const winEl = document.getElementById('attrwin');
     ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
       .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
@@ -700,7 +720,7 @@
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
   // --- North Arrow Control (modern) ---
 const NorthControl = L.Control.extend({
-  options:{ position: 'topleft' }, // άλλαξε σε 'topright' αν θέλεις
+  options:{ position: 'topright' },
   onAdd(){
     const div = L.DomUtil.create('div', 'leaflet-control north-control');
     const card = L.DomUtil.create('div', 'north-card', div);
@@ -776,7 +796,6 @@ card.innerHTML += `
     return div;
   }
 });
-map.addControl(new NorthControl());
   document.getElementById('basemap').value = currentBase;
 
   // ---------- STATE ----------
@@ -1480,7 +1499,9 @@ map.addControl(scaleCtl);
       return bar;
     }
   });
-  map.addControl(new TopBarControl());
+  map.addControl(new TopBarControl());  // ← measure + scale (πάνω δεξιά)
+  map.addControl(new NorthControl());   // ← βόρρας ακριβώς από κάτω
+
 
   // ---------- MEASURE CORE ----------
   const measureLayer = L.featureGroup().addTo(map);
