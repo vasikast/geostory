@@ -378,6 +378,19 @@
   50%  { transform: scale(0.94); }
   100% { transform: scale(1); }
 }
+/* HIDE όλα τα auto-controls του leaflet-ui που δεν θέλουμε */
+.leaflet-control-basemaps,
+.leaflet-control-minimap,
+.leaflet-control-geocoder,
+.leaflet-control-locate,
+.leaflet-control-fullscreen,
+.leaflet-control-measure,
+.leaflet-control-zoomslider,
+.leaflet-control-credits,
+.leaflet-ui-control {
+  display: none !important;
+}
+
 </style>
 <style>
 /* Fallback: επιβάλλει πλωτά παράθυρα ακόμα κι αν δεν φορτώσει το attrwin.css */
@@ -734,6 +747,23 @@
 });
   map.doubleClickZoom.disable();
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+  // Καθάρισε όσα controls έχουν ήδη προστεθεί από το leaflet-ui
+map.whenReady(() => {
+  const selector = `
+    .leaflet-control-basemaps,
+    .leaflet-control-minimap,
+    .leaflet-control-geocoder,
+    .leaflet-control-locate,
+    .leaflet-control-fullscreen,
+    .leaflet-control-measure,
+    .leaflet-control-zoomslider,
+    .leaflet-control-credits,
+    .leaflet-ui-control,
+    .leaflet-control-layers
+  `;
+  document.querySelectorAll(selector).forEach(el => el.remove());
+});
+
 // --- North Arrow Control (modern + rotatable) ---
 const NorthControl = L.Control.extend({
   options:{ position: 'topright' },
