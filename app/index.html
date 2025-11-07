@@ -579,8 +579,8 @@
   </div>
 
   <!-- Import shared attr window -->
-<script type="module">
-  import { openAttrWindow, setAttrData } from 'public/js/attrwin.js?v=4';
+  <script type="module">
+    import { openAttrWindow, setAttrData } from '/public/js/attrwin.js?v=4';
     const winEl = document.getElementById('attrwin');
     ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
       .forEach(ev => winEl.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
