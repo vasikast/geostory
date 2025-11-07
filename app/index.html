@@ -91,7 +91,7 @@
 
   /* Measure controls (yellow) */
 /* Measure controls (yellow) — compact 32px ύψος */
-.leaflet-control-measure{
+.measure-tools{
   display:flex; gap:6px; align-items:center;
   padding:4px;
   border-radius:12px;
@@ -101,7 +101,7 @@
   box-shadow:0 6px 20px rgba(0,0,0,.15);
 }
 
-.leaflet-control-measure a{
+.measure-tools a{
   display:inline-flex !important; align-items:center; justify-content:center;
   width:32px; height:32px;                 /* ← ίδιο ύψος με scale input */
   padding:0 !important;
@@ -113,16 +113,16 @@
   transition:transform .08s ease, filter .15s ease, box-shadow .15s ease;
 }
 
-.leaflet-control-measure a .ico{
+.measure-tools a .ico{
   display:flex; align-items:center; justify-content:center;
   width:100%; height:100%;
   font-size:16px;                           /* μικρότερο εικονίδιο */
   line-height:1;
 }
 
-.leaflet-control-measure a:hover{ filter:brightness(1.05); }
-.leaflet-control-measure a:active{ transform:translateY(1px) scale(0.98); }
-.leaflet-control-measure a.active{ outline:2px solid var(--acc); }
+.measure-tools a:hover{ filter:brightness(1.05); }
+.measure-tools a:active{ transform:translateY(1px) scale(0.98); }
+.measure-tools a.active{ outline:2px solid var(--acc); }
 
 :root{ --measure-bg:#f5c518; --measure-border:#d4aa12; --measure-fg:#0b1020; }
 :root[data-theme="dark"]{ --measure-bg:#ffd652; --measure-border:#e6bf2a; --measure-fg:#0b1020; }
@@ -379,6 +379,12 @@
   100% { transform: scale(1); }
 }
 /* HIDE όλα τα auto-controls του leaflet-ui που δεν θέλουμε */
+/* --- Force-hide default Leaflet overlays we don't want --- */
+.leaflet-gesture-handling-warning{ display:none !important; } /* το γκρι μήνυμα */
+.leaflet-control-zoom{ display:none !important; }            /* + / − δεξιά */
+.leaflet-control-scale,
+.leaflet-ui-scale{ display:none !important; }                /* default scale */
+.leaflet-control-attribution{ display:none !important; }     /* credits κάτω-δεξιά */
 .leaflet-control-basemaps,
 .leaflet-control-minimap,
 .leaflet-control-geocoder,
@@ -467,7 +473,7 @@
 
     <section class="canvas"><div id="map"></div></section>
 
-    <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Identify • Basemaps • (Opt) GeoPackage • Dark/Light</footer>
+ <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Identify • Basemaps • (Opt) GeoPackage • Dark/Light • Data © OpenStreetMap contributors, Esri, OpenTopoMap</footer>
   </div>
 
   <!-- STYLE PANEL (per layer) -->
@@ -738,13 +744,21 @@
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
   const map = L.map('map', {
-  zoomControl: true,
-  attributionControl: true,
-  rotate: true,          // ✅ ενεργοποίηση rotation (leaflet-ui)
-  bearing: 0,            // (προαιρετικό) αρχική γωνία
-  touchRotate: true,     // δύο δάχτυλα σε touch
-  shiftKeyRotate: true   // Shift + ροδέλα στο desktop
+  zoomControl: false,      // ← κρύβει το +/−
+  attributionControl: false,/* αν θες να φύγει κι αυτό, κάν’ το false (βλ. §4) */
+  rotate: true,
+  bearing: 0,
+  touchRotate: true,
+  shiftKeyRotate: true,
+  // δεν θέλουμε το gesture overlay
+  gestureHandling: false
 });
+
+// εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
+map.scrollWheelZoom.enable();
+map.touchZoom.enable();
+if (map.gestureHandling?.disable) map.gestureHandling.disable();
+
   map.doubleClickZoom.disable();
   let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
   // Καθάρισε όσα controls έχουν ήδη προστεθεί από το leaflet-ui
@@ -1530,7 +1544,7 @@ map.addControl(scaleCtl);
       lock.id='scaleLock'; lock.type='button'; lock.textContent='Lock';
 
       // measure group (δεξιά)
-      const mwrap = L.DomUtil.create('div','leaflet-control-measure', bar);
+      const mwrap = L.DomUtil.create('div','measure-tools', bar);
       const mkBtn = (label, iconTxt) => {
         const a = L.DomUtil.create('a','',mwrap);
         a.href='#';
@@ -1919,30 +1933,6 @@ map.addControl(scaleCtl);
     const attr = document.getElementById('attrwin');
     if(attr && !attr.classList.contains('hidden')){ document.getElementById('attrwin-close')?.click(); }
   });
-</script>
-  <script>
-// Zoom κουμπιά: μικρό "παλμικό" animation στο πάτημα
-(function(){
-  function pulse(el){
-    if(!el) return;
-    el.classList.remove('pulse'); // restart animation
-    void el.offsetWidth; // reflow trick
-    el.classList.add('pulse');
-  }
-
-  // Mouse/Touch
-  document.addEventListener('pointerdown', (e)=>{
-    const a = e.target.closest('.leaflet-control-zoom a');
-    if(a) pulse(a);
-  }, {capture:true});
-
-  // Keyboard (Enter/Space πάνω στα κουμπιά)
-  document.addEventListener('keydown', (e)=>{
-    if(e.key !== 'Enter' && e.key !== ' ') return;
-    const a = document.activeElement?.closest?.('.leaflet-control-zoom a');
-    if(a) pulse(a);
-  }, {capture:true});
-})();
 </script>
 </body>
 </html>
