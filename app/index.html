@@ -378,24 +378,37 @@
   50%  { transform: scale(0.94); }
   100% { transform: scale(1); }
 }
-/* HIDE όλα τα auto-controls του leaflet-ui που δεν θέλουμε */
-/* --- Force-hide default Leaflet overlays we don't want --- */
-.leaflet-gesture-handling-warning{ display:none !important; } /* το γκρι μήνυμα */
-.leaflet-control-zoom{ display:none !important; }            /* + / − δεξιά */
+
+/* --- Force-hide default Leaflet/leaflet-ui overlays we don't want --- */
+.leaflet-gesture-handling-warning{ display:none !important; } /* γκρι μήνυμα */
+.leaflet-control-zoom{ display:none !important; }            /* +/− δεξιά */
 .leaflet-control-scale,
 .leaflet-ui-scale{ display:none !important; }                /* default scale */
 .leaflet-control-attribution{ display:none !important; }     /* credits κάτω-δεξιά */
+
+/* leaflet-ui toolbars & buttons (τα κίτρινα) */
+.leaflet-ui-control,
+.leaflet-control-toolbar,
+.leaflet-control-measure,
+.leaflet-control-zoomslider,
 .leaflet-control-basemaps,
 .leaflet-control-minimap,
 .leaflet-control-geocoder,
 .leaflet-control-locate,
 .leaflet-control-fullscreen,
-.leaflet-control-measure,
-.leaflet-control-zoomslider,
 .leaflet-control-credits,
-.leaflet-ui-control {
+.ui-control,
+.ui-buttons,
+.ui-btn {
   display: none !important;
 }
+
+/* μην εμφανίσει τίποτα και κάτω δεξιά */
+.leaflet-bottom.leaflet-right .leaflet-ui-control,
+.leaflet-bottom.leaflet-right .leaflet-control-toolbar { 
+  display:none !important;
+}
+
 
 </style>
 <style>
