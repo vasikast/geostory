@@ -341,10 +341,9 @@
 }
 
 
-  .leaflet-bottom.leaflet-left {
-    margin: 0 0 14px 14px;
-  }
-
+ .leaflet-bottom.leaflet-right {
+  margin: 0 14px 14px 0;
+}
 
   /* HUD (live μέτρηση) δίπλα στον κέρσορα */
   #measureHud{
@@ -794,7 +793,7 @@ map.whenReady(() => {
 
 // --- North Arrow Control (modern + rotatable) ---
 const NorthControl = L.Control.extend({
-  options:{ position: 'topright' },
+  options:{ position: 'topleft' },
   onAdd(){
     const div = L.DomUtil.create('div', 'leaflet-control north-control');
     const card = L.DomUtil.create('div', 'north-card', div);
@@ -1542,7 +1541,7 @@ map.addControl(scaleCtl);
   }
 
  const TopBarControl = L.Control.extend({
-  options: { position: 'topright' },
+  options: { position: 'bottomright' },
   onAdd: function(){
     const bar = L.DomUtil.create('div','topbar leaflet-control');
     const fsContainer = map.getContainer();   // για fullscreen
