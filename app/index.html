@@ -363,7 +363,7 @@
   #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
   #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
   #attrwin *, #sharewin * { user-select: auto !important; }
-  /* Zoom controls: διακριτικό pulse όταν πατάς */
+/* Zoom controls: διακριτικό pulse όταν πατάς */
 .leaflet-control-zoom a{
   position: relative;
   transition: transform .12s ease, box-shadow .18s ease, filter .18s ease;
@@ -379,9 +379,9 @@
   100% { transform: scale(1); }
 }
 
+
 /* --- Force-hide default Leaflet/leaflet-ui overlays we don't want --- */
 .leaflet-gesture-handling-warning{ display:none !important; } /* γκρι μήνυμα */
-.leaflet-control-zoom{ display:none !important; }            /* +/− δεξιά */
 .leaflet-control-scale,
 .leaflet-ui-scale{ display:none !important; }                /* default scale */
 .leaflet-control-attribution{ display:none !important; }     /* credits κάτω-δεξιά */
@@ -756,16 +756,16 @@
     sat: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Esri'}),
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
-  const map = L.map('map', {
-  zoomControl: false,      // ← κρύβει το +/−
-  attributionControl: false,/* αν θες να φύγει κι αυτό, κάν’ το false (βλ. §4) */
+const map = L.map('map', {
+  zoomControl: true,       // ✅ άφησέ το true (ή απλά αφαίρεσέ το, default = true)
+  attributionControl: false, // ok, το attribution δεν το θες
   rotate: true,
   bearing: 0,
   touchRotate: true,
   shiftKeyRotate: true,
-  // δεν θέλουμε το gesture overlay
-  gestureHandling: false
+  gestureHandling: false   // χωρίς γκρι overlay
 });
+
 
 // εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 map.scrollWheelZoom.enable();
@@ -1540,73 +1540,125 @@ map.addControl(scaleCtl);
     return n;
   }
 
-  const TopBarControl = L.Control.extend({
-    options: { position: 'topright' },
-    onAdd: function(){
-      const bar = L.DomUtil.create('div','topbar leaflet-control');
+ const TopBarControl = L.Control.extend({
+  options: { position: 'topright' },
+  onAdd: function(){
+    const bar = L.DomUtil.create('div','topbar leaflet-control');
+    const fsContainer = map.getContainer();   // για fullscreen
 
-      // scale box (αριστερά από measure)
-      const scaleBox = L.DomUtil.create('div','scalebox', bar);
-      const lbl = L.DomUtil.create('label','', scaleBox);
-      lbl.htmlFor = 'scaleInput'; lbl.textContent = '1:';
-      const inp = L.DomUtil.create('input','', scaleBox);
-      inp.id='scaleInput'; inp.type='text'; inp.placeholder='5000';
-      const go  = L.DomUtil.create('button','', scaleBox);
-      go.id='scaleGo'; go.type='button'; go.textContent='Go';
-      const lock = L.DomUtil.create('button','', scaleBox);
-      lock.id='scaleLock'; lock.type='button'; lock.textContent='Lock';
+    // scale box (αριστερά από measure)
+    const scaleBox = L.DomUtil.create('div','scalebox', bar);
+    const lbl = L.DomUtil.create('label','', scaleBox);
+    lbl.htmlFor = 'scaleInput'; lbl.textContent = '1:';
+    const inp = L.DomUtil.create('input','', scaleBox);
+    inp.id='scaleInput'; inp.type='text'; inp.placeholder='5000';
+    const go  = L.DomUtil.create('button','', scaleBox);
+    go.id='scaleGo'; go.type='button'; go.textContent='Go';
+    const lock = L.DomUtil.create('button','', scaleBox);
+    lock.id='scaleLock'; lock.type='button'; lock.textContent='Lock';
 
-      // measure group (δεξιά)
-      const mwrap = L.DomUtil.create('div','measure-tools', bar);
-      const mkBtn = (label, iconTxt) => {
-        const a = L.DomUtil.create('a','',mwrap);
-        a.href='#';
-        a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
-        a.title = label; a.setAttribute('aria-label', label);
-        return a;
-      };
-      const btnDist  = mkBtn('Measure line (click to add points • double click to finish • Esc to cancel)','📏');
-      const btnArea  = mkBtn('Measure area (click to add vertices • double click to finish • Esc to cancel)','▱');
-      const btnClear = mkBtn('Clear all measurements','🧹');
+    // measure group (δεξιά)
+    const mwrap = L.DomUtil.create('div','measure-tools', bar);
+    const mkBtn = (label, iconTxt) => {
+      const a = L.DomUtil.create('a','',mwrap);
+      a.href='#';
+      a.innerHTML = `<span class="ico" aria-hidden="true">${iconTxt}</span>`;
+      a.title = label; a.setAttribute('aria-label', label);
+      return a;
+    };
 
-      function setActive(b){
-        [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
-        b && b.classList.add('active');
-      }
-      btnDist.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnDist); startMeasure('distance'); });
-      btnArea.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(btnArea); startMeasure('area'); });
-      btnClear.addEventListener('click',(ev)=>{ ev.preventDefault(); ev.stopPropagation(); setActive(null); clearAllMeasurements(); });
+    const btnDist  = mkBtn(
+      'Measure line (click to add points • double click to finish • Esc to cancel)',
+      '📏'
+    );
+    const btnArea  = mkBtn(
+      'Measure area (click to add vertices • double click to finish • Esc to cancel)',
+      '▱'
+    );
+    const btnClear = mkBtn('Clear all measurements','🧹');
+    const btnFull  = mkBtn('Toggle fullscreen','⛶');  // ΝΕΟ fullscreen
 
-      // scale handlers
-      function applyScale(){
-        const n = parseScaleInput(inp.value);
-        if(!n){ alert('Δώσε έγκυρη κλίμακα π.χ. 5000, 1:25000, 10k, 1:2m'); return; }
-        const lat = map.getCenter().lat;
-        const z = zoomForDenom(lat, n);
-        map.setZoom(z);
-      }
-      go.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); applyScale(); });
-      inp.addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ e.preventDefault(); e.stopPropagation(); applyScale(); } });
+    function setActive(b){
+      [btnDist,btnArea].forEach(el=> el.classList.remove('active'));
+      b && b.classList.add('active');
+    }
+    btnDist.addEventListener('click',(ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      setActive(btnDist); startMeasure('distance');
+    });
+    btnArea.addEventListener('click',(ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      setActive(btnArea); startMeasure('area');
+    });
+    btnClear.addEventListener('click',(ev)=>{
+      ev.preventDefault(); ev.stopPropagation();
+      setActive(null); clearAllMeasurements();
+    });
 
-      // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
-      let isLocked = false;
-      function setLock(on){
-        isLocked = !!on;
-        lock.classList.toggle('active', isLocked);
-        if(isLocked){
-          map.scrollWheelZoom.disable();
-          map.touchZoom.disable();
-        }else{
-          map.scrollWheelZoom.enable();
-          map.touchZoom.enable();
+    // --- Fullscreen toggle ---
+    function syncFsState(){
+      const active = document.fullscreenElement === fsContainer;
+      btnFull.classList.toggle('active', active);
+    }
+
+    btnFull.addEventListener('click',(ev)=>{
+      ev.preventDefault();
+      ev.stopPropagation();
+      if (document.fullscreenElement === fsContainer){
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else {
+        if (fsContainer.requestFullscreen){
+          fsContainer.requestFullscreen();
         }
       }
-      lock.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); setLock(!isLocked); });
+    });
 
-      L.DomEvent.disableClickPropagation(bar);
-      return bar;
+    document.addEventListener('fullscreenchange', syncFsState);
+    syncFsState();
+    // -------------------------
+
+    // scale handlers
+    function applyScale(){
+      const n = parseScaleInput(inp.value);
+      if(!n){
+        alert('Δώσε έγκυρη κλίμακα π.χ. 5000, 1:25000, 10k, 1:2m');
+        return;
+      }
+      const lat = map.getCenter().lat;
+      const z = zoomForDenom(lat, n);
+      map.setZoom(z);
     }
-  });
+    go.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation(); applyScale();
+    });
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key==='Enter'){
+        e.preventDefault(); e.stopPropagation(); applyScale();
+      }
+    });
+
+    // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
+    let isLocked = false;
+    function setLock(on){
+      isLocked = !!on;
+      lock.classList.toggle('active', isLocked);
+      if(isLocked){
+        map.scrollWheelZoom.disable();
+        map.touchZoom.disable();
+      }else{
+        map.scrollWheelZoom.enable();
+        map.touchZoom.enable();
+      }
+    }
+    lock.addEventListener('click', (e)=>{
+      e.preventDefault(); e.stopPropagation(); setLock(!isLocked);
+    });
+
+    L.DomEvent.disableClickPropagation(bar);
+    return bar;
+  }
+});
+
   map.addControl(new TopBarControl());  // ← measure + scale (πάνω δεξιά)
   map.addControl(new NorthControl());   // ← βόρρας ακριβώς από κάτω
 
