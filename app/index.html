@@ -800,10 +800,10 @@ map.whenReady(() => {
 });
 
 // --- North Arrow Control (modern + rotatable) ---
+// --- North Arrow Control (modern + rotatable) ---
 const NorthControl = L.Control.extend({
--  options:{ position: 'topright' },
-+  options:{ position: 'topleft' },
-  onAdd(){
+  options: { position: 'topleft' },
+  onAdd() {
     const div = L.DomUtil.create('div', 'leaflet-control north-control');
     const card = L.DomUtil.create('div', 'north-card', div);
     const nLab = L.DomUtil.create('div', 'north-N', card);
@@ -855,7 +855,6 @@ const NorthControl = L.Control.extend({
       </svg>
     `;
 
-    // --- Συγχρονισμός βελόνας με bearing ---
     const needle = card.querySelector('.north-needle');
     needle.style.transformOrigin = '50% 50%';
     function syncNeedle(){
@@ -865,7 +864,6 @@ const NorthControl = L.Control.extend({
     map.on('move zoom rotate', syncNeedle);
     syncNeedle();
 
-    // --- Drag πάνω στη κάρτα για περιστροφή του χάρτη ---
     let dragging=false, startAngle=0, startBearing=0;
     function angleFromCenter(e){
       const r = card.getBoundingClientRect();
@@ -905,13 +903,11 @@ const NorthControl = L.Control.extend({
       window.addEventListener('touchend', onUp);
     });
 
-    // Μην κλέβει events από τον χάρτη
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
     return div;
   }
 });
-
 
   document.getElementById('basemap').value = currentBase;
 
