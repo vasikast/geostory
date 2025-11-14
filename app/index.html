@@ -795,6 +795,7 @@ map.doubleClickZoom.disable();
 let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
 
   // Καθάρισε όσα controls έχουν ήδη προστεθεί από το leaflet-ui
+// Καθάρισε ΟΛΑ τα leaflet-ui toolbars & κουμπιά (κρατάμε μόνο το rotate API)
 map.whenReady(() => {
   const selector = `
     .leaflet-control-basemaps,
@@ -806,12 +807,26 @@ map.whenReady(() => {
     .leaflet-control-zoomslider,
     .leaflet-control-credits,
     .leaflet-ui-control,
-    .leaflet-control-layers
+    .leaflet-control-toolbar,
+    .leaflet-control-layers,
+    .ui-control,
+    .ui-buttons,
+    .ui-btn
   `;
   document.querySelectorAll(selector).forEach(el => el.remove());
+
+  // extra: εξαφάνισε τυχόν μεμονωμένα κουμπιά fullscreen / search / rotate
+  document.querySelectorAll(
+    'a[title="Enter fullscreen"],' +
+    'a[title="Exit fullscreen"],'  +
+    'a[title="Search"],'           +
+    'a[title="Rotate map"]'
+  ).forEach(btn => {
+    const ctl = btn.closest('.leaflet-control') || btn.closest('.leaflet-right') || btn;
+    if (ctl && ctl.parentNode) ctl.parentNode.removeChild(ctl);
+  });
 });
 
-// --- North Arrow Control (modern + rotatable) ---
 // --- North Arrow Control (modern + rotatable) ---
 const NorthControl = L.Control.extend({
   options: { position: 'topleft' },
@@ -873,7 +888,7 @@ const NorthControl = L.Control.extend({
       const deg = -(map.getBearing?.() || 0);
       needle.style.transform = `rotate(${deg}deg)`;
     }
-    map.on('move zoom rotate', syncNeedle);
+    ['move','zoom'].forEach(ev => map.on(ev, syncNeedle));
     syncNeedle();
 
     let dragging=false, startAngle=0, startBearing=0;
