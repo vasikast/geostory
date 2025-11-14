@@ -774,6 +774,19 @@ const map = L.map('map', {
 // custom zoom control, ΠΑΝΩ ΑΡΙΣΤΕΡΑ
 L.control.zoom({ position: 'topleft' }).addTo(map);
 
+// Zoom pulse animation on click
+const zoomCtrlEl = document.querySelector('.leaflet-control-zoom');
+if (zoomCtrlEl){
+  zoomCtrlEl.addEventListener('click', (e)=>{
+    const btn = e.target.closest('a');
+    if (!btn) return;
+    btn.classList.remove('pulse');
+    // force reflow
+    void btn.offsetWidth;
+    btn.classList.add('pulse');
+  });
+}
+
 // εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 map.scrollWheelZoom.enable();
 map.touchZoom.enable();
@@ -1618,8 +1631,12 @@ map.addControl(scaleCtl);
       }
     });
 
-    document.addEventListener('fullscreenchange', syncFsState);
+    document.addEventListener('fullscreenchange', () => {
+      syncFsState();
+      map.invalidateSize();   // 👈 για να προσαρμόζεται σωστά ο χάρτης fullscreen/exit
+    });
     syncFsState();
+
     // -------------------------
 
     // scale handlers
