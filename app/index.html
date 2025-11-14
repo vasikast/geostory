@@ -20,8 +20,6 @@
 <!-- Turf.js για μετρήσεις -->
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
-<script src="https://unpkg.com/leaflet-ui@0.5.0/dist/leaflet-ui.js"></script>
-
 <!-- Attribute/Share Window styles -->
 <link rel="stylesheet" href="/public/css/attrwin.css?v=4" />
 
@@ -757,23 +755,26 @@
     topo:L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',{maxZoom:17,attribution:'OpenTopoMap'})
   };
 const map = L.map('map', {
-  zoomControl: true,       // ✅ άφησέ το true (ή απλά αφαίρεσέ το, default = true)
-  attributionControl: false, // ok, το attribution δεν το θες
+  zoomControl: false,
+  attributionControl: false,
   rotate: true,
   bearing: 0,
   touchRotate: true,
   shiftKeyRotate: true,
-  gestureHandling: false   // χωρίς γκρι overlay
+  gestureHandling: false
 });
 
+// custom zoom control, ΠΑΝΩ ΑΡΙΣΤΕΡΑ
+L.control.zoom({ position: 'topleft' }).addTo(map);
 
 // εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 map.scrollWheelZoom.enable();
 map.touchZoom.enable();
 if (map.gestureHandling?.disable) map.gestureHandling.disable();
 
-  map.doubleClickZoom.disable();
-  let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+map.doubleClickZoom.disable();
+let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+
   // Καθάρισε όσα controls έχουν ήδη προστεθεί από το leaflet-ui
 map.whenReady(() => {
   const selector = `
