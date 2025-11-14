@@ -819,35 +819,37 @@ map.whenReady(() => {
 
     const container = map.getContainer();
 
-    // 2) ΠΑΝΩ-ΔΕΞΙΑ: δεν θέλουμε τίποτα εκεί → σβήσε όλα τα controls
+    // 2) ΠΑΝΩ-ΔΕΞΙΑ: άδειασε τα πάντα
     const topRight = container.querySelector('.leaflet-top.leaflet-right');
     if (topRight) {
       Array.from(topRight.children).forEach(c => topRight.removeChild(c));
     }
 
-    // 3) ΚΑΤΩ-ΔΕΞΙΑ: κράτα ΜΟΝΟ το δικό μας TopBar (που έχει .topbar μέσα)
+    // 3) ΚΑΤΩ-ΔΕΞΙΑ: ΚΡΑΤΑ ΜΟΝΟ το δικό μας topbar control
     const bottomRight = container.querySelector('.leaflet-bottom.leaflet-right');
     if (bottomRight) {
       Array.from(bottomRight.children).forEach(c => {
-        if (!c.querySelector('.topbar')) {
+        // εδώ κοιτάμε ΤΟ ΙΔΙΟ το στοιχείο
+        if (!c.classList.contains('topbar')) {
           bottomRight.removeChild(c);
         }
       });
     }
 
-    // 4) Extra: πετά μεμονωμένα κουμπιά με αυτά τα title
+    // 4) Extra: πετά μεμονωμένα κουμπιά fullscreen / search / rotate
     document.querySelectorAll(
       'a[title="Enter fullscreen"],' +
       'a[title="Exit fullscreen"],'  +
       'a[title="Search"],'           +
       'a[title="Rotate map"]'
     ).forEach(btn => {
-      const ctl = btn.closest('.leaflet-control') || btn.closest('.leaflet-right') || btn;
+      const ctl = btn.closest('.leaflet-control') ||
+                  btn.closest('.leaflet-right')   ||
+                  btn;
       if (ctl && ctl.parentNode) ctl.parentNode.removeChild(ctl);
     });
   }
 
-  // τρέχει άμεσα + επαναληπτικά (για controls που εμφανίζονται με delay)
   cleanup();
   setTimeout(cleanup, 100);
   setTimeout(cleanup, 500);
