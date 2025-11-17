@@ -352,6 +352,16 @@
   margin: 0 4px 4px 0;
 }
 
+/* 👉 ΕΔΩ ΠΡΟΣΘΕΤΕΙΣ ΑΥΤΟ */
+.leaflet-top.leaflet-right {
+  margin: 4px 4px 0 0;
+}
+/* Όταν είναι κλειδωμένη η κλίμακα, απενεργοποίησε τα +/- */
+.leaflet-container.zoom-locked .leaflet-control-zoom {
+  pointer-events: none;
+  opacity: 0.4;   /* λίγο “σβηστά” οπτικά */
+}
+
   /* HUD (live μέτρηση) δίπλα στον κέρσορα */
   #measureHud{
     position: absolute; pointer-events: none; z-index: 5000;
@@ -1708,17 +1718,32 @@ map.addControl(scaleCtl);
 
     // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
     let isLocked = false;
-    function setLock(on){
-      isLocked = !!on;
-      lock.classList.toggle('active', isLocked);
-      if(isLocked){
-        map.scrollWheelZoom.disable();
-        map.touchZoom.disable();
-      }else{
-        map.scrollWheelZoom.enable();
-        map.touchZoom.enable();
-      }
-    }
+function setLock(on){
+  isLocked = !!on;
+  lock.classList.toggle('active', isLocked);
+
+  const container = map.getContainer();
+
+  if (isLocked){
+    map.scrollWheelZoom.disable();  // ροδέλα
+    map.touchZoom.disable();        // pinch
+    map.boxZoom.disable();          // drag-zoom
+    map.keyboard.disable();         // + / -
+    map.doubleClickZoom.disable();  // 👈 ΝΕΟ: κόβει και το διπλό κλικ
+
+    container.classList.add('zoom-locked');
+  } else {
+    map.scrollWheelZoom.enable();
+    map.touchZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    map.doubleClickZoom.enable();   // 👈 ΝΕΟ: το επαναφέρει
+
+    container.classList.remove('zoom-locked');
+  }
+}
+
+
     lock.addEventListener('click', (e)=>{
       e.preventDefault(); e.stopPropagation(); setLock(!isLocked);
     });
