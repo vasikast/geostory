@@ -780,8 +780,13 @@ const map = L.map('map', {
   gestureHandling: false
 });
 
+// 🔒 Global μεταβλητή για το Lock
+const mapContainer = map.getContainer();
+let zoomLocked = false;
+
 // custom zoom control, ΠΑΝΩ ΑΡΙΣΤΕΡΑ
 L.control.zoom({ position: 'topleft' }).addTo(map);
+
 
 // Zoom pulse animation on click
 const zoomCtrlEl = document.querySelector('.leaflet-control-zoom');
@@ -797,14 +802,33 @@ if (zoomCtrlEl){
 }
 
 // εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
+// εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 map.scrollWheelZoom.enable();
 map.touchZoom.enable();
 if (map.gestureHandling?.disable) map.gestureHandling.disable();
 
-map.doubleClickZoom.disable();
-let currentBase='osm'; basemaps.osm.addTo(map); map.setView([38,23.7],6);
+// 🔒 Αν είναι ενεργό το Lock, κόβουμε wheel / touch zoom σε επίπεδο DOM
+['wheel', 'touchstart', 'gesturestart'].forEach(ev => {
+  mapContainer.addEventListener(ev, (e) => {
+    if (zoomLocked) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, { passive: false, capture: true });
+});
 
-  // Καθάρισε όσα controls έχουν ήδη προστεθεί από το leaflet-ui
+// Αν προσπαθήσει να ξεκινήσει zoom ενώ είναι κλειδωμένο, σταμάτα το
+map.on('zoomstart', () => {
+  if (zoomLocked) {
+    map.stop();
+  }
+});
+
+let currentBase='osm'; 
+basemaps.osm.addTo(map); 
+map.setView([38,23.7],6);
+
+  
 // Καθάρισε ΟΛΑ τα leaflet-ui toolbars & κουμπιά (κρατάμε μόνο το rotate API)
 map.whenReady(() => {
   function cleanup() {
@@ -1717,19 +1741,20 @@ map.addControl(scaleCtl);
     });
 
     // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
-    let isLocked = false;
+let isLocked = false;
 function setLock(on){
   isLocked = !!on;
+  zoomLocked = isLocked;                      // 🔒 ενημερώνουμε το global flag
   lock.classList.toggle('active', isLocked);
 
   const container = map.getContainer();
 
   if (isLocked){
-    map.scrollWheelZoom.disable();  // ροδέλα
-    map.touchZoom.disable();        // pinch
-    map.boxZoom.disable();          // drag-zoom
-    map.keyboard.disable();         // + / -
-    map.doubleClickZoom.disable();  // 👈 ΝΕΟ: κόβει και το διπλό κλικ
+    map.scrollWheelZoom.disable();
+    map.touchZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    map.doubleClickZoom.disable();
 
     container.classList.add('zoom-locked');
   } else {
@@ -1737,11 +1762,12 @@ function setLock(on){
     map.touchZoom.enable();
     map.boxZoom.enable();
     map.keyboard.enable();
-    map.doubleClickZoom.enable();   // 👈 ΝΕΟ: το επαναφέρει
+    map.doubleClickZoom.enable();
 
     container.classList.remove('zoom-locked');
   }
 }
+
 
 
     lock.addEventListener('click', (e)=>{
