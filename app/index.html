@@ -1589,8 +1589,10 @@ const ScaleControl = L.Control.extend({
     const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
 
     const minPx = 180;
-    const maxPx = 220;
-    const targetPx = 200;
+-   const maxPx = 220;
+-   const targetPx = 200;
++   const maxPx = 260;
++   const targetPx = 220;   // π.χ. λίγο πιο “μεσαία” τιμή
 
     const minMeters = mPerPx * minPx;
     const maxMeters = mPerPx * maxPx;
@@ -1683,6 +1685,9 @@ this._bar.style.background =
 // εδώ πλέον:
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
+map.whenReady(() => {
+  scaleCtl.update();
+});
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
   function mPerPxAt(lat, zoom){
