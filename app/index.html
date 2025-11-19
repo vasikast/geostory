@@ -400,6 +400,15 @@
 .leaflet-ui-scale{ display:none !important; }                /* default scale */
 .leaflet-control-attribution{ display:none !important; }     /* credits κάτω-δεξιά */
 
+/* Σβήσε τελείως το leaflet-ui loading spinner πάνω από το zoom */
+.ui-loader,
+.leaflet-ui-loader,
+.leaflet-ui-loading,
+.leaflet-control-loading {
+  display: none !important;
+  pointer-events: none !important;
+}
+
 /* leaflet-ui toolbars & buttons (τα κίτρινα) */
 .leaflet-ui-control,
 .leaflet-control-toolbar,
