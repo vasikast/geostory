@@ -393,6 +393,18 @@
   100% { transform: scale(1); }
 }
 
+/* 👉 Κάρφωσε το zoom control στην πάνω-αριστερή γωνία */
+.leaflet-top.leaflet-left {
+  top: 4px;
+  left: 4px;
+}
+
+.leaflet-top.leaflet-left .leaflet-control-zoom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  margin: 0;
+}
 
 /* --- Force-hide default Leaflet/leaflet-ui overlays we don't want --- */
 .leaflet-gesture-handling-warning{ display:none !important; } /* γκρι μήνυμα */
