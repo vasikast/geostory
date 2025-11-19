@@ -1558,10 +1558,14 @@ function formatMeters(m, unit = true) {
 const ScaleControl = L.Control.extend({
   options: { position: 'bottomleft' },
 
-  onAdd: function () {
+  onAdd: function (map) {
+    this._map = map;                      // αποθηκεύουμε αναφορά στον χάρτη
+
     const div = L.DomUtil.create('div', 'leaflet-control scale-control');
+
     // labels επάνω
     this._labels = L.DomUtil.create('div', 'scale-labels', div);
+
     // σειρά: μπάρα + μονάδα δεξιά
     this._row = L.DomUtil.create('div', '', div);
     this._row.style.display = 'flex';
@@ -1578,17 +1582,36 @@ const ScaleControl = L.Control.extend({
     this._unit.style.userSelect = 'none';
     this._unit.style.fontWeight = 'normal';
 
+    // bind update ώστε να έχουμε σωστό this
+    this._onMapChange = this.update.bind(this);
+
+    // καλύτερα στα τελικά events
+    map.on('moveend zoomend', this._onMapChange);
+
+    // αρχική ενημέρωση
     this.update();
-    map.on('move zoom', () => this.update());
+
     return div;
   },
 
-  update() {
+  onRemove: function (map) {
+    // καθάρισμα events όταν αφαιρεθεί το control
+    if (this._onMapChange) {
+      map.off('moveend zoomend', this._onMapChange);
+    }
+  },
+
+  update: function () {
+    const map = this._map;
+    if (!map) return;
+
     const R = 6378137;
     const lat = map.getCenter().lat * Math.PI / 180;
-    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
+    const zoom = map.getZoom();
+    if (!isFinite(zoom)) return;
 
-    // 👉 από 180–260, “στόχος” ~220px
+    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
+
     const minPx = 180;
     const maxPx = 260;
     const targetPx = 220;
