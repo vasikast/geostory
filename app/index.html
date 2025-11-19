@@ -425,6 +425,17 @@
   pointer-events: auto !important;
 }
 
+/* Σβήσε τελείως το μικρό spinner μέσα στο + / - */
+.leaflet-control-zoom a.leaflet-control-loading {
+  background-image: none !important;
+}
+
+.leaflet-control-zoom a.leaflet-control-loading::before,
+.leaflet-control-zoom a.leaflet-control-loading::after {
+  content: none !important;
+  display: none !important;
+}
+
 /* leaflet-ui toolbars & buttons (τα κίτρινα) */
 .leaflet-ui-control,
 .leaflet-control-toolbar,
