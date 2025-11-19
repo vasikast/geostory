@@ -1557,6 +1557,7 @@ function formatMeters(m, unit = true) {
 
 const ScaleControl = L.Control.extend({
   options: { position: 'bottomleft' },
+
   onAdd: function () {
     const div = L.DomUtil.create('div', 'leaflet-control scale-control');
     // labels επάνω
@@ -1581,22 +1582,21 @@ const ScaleControl = L.Control.extend({
     map.on('move zoom', () => this.update());
     return div;
   },
+
   update() {
     const R = 6378137;
     const lat = map.getCenter().lat * Math.PI / 180;
     const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
 
-    // Περιορισμοί πλάτους μπάρας (σε pixels)
-    const minPx = 60;
-    const maxPx = 200;
-    const targetPx = 140; // “ιδανικό” πλάτος στο περίπου
+    const minPx = 180;
+    const maxPx = 220;
+    const targetPx = 200;
 
     const minMeters = mPerPx * minPx;
     const maxMeters = mPerPx * maxPx;
 
     if (!isFinite(minMeters) || minMeters <= 0) return;
 
-    // Φτιάχνουμε "nice" τιμές: 1, 2, 5 × 10^n
     const bases = [1, 2, 5];
     const candidates = [];
     const minExp = Math.floor(Math.log10(minMeters)) - 1;
@@ -1614,7 +1614,6 @@ const ScaleControl = L.Control.extend({
 
     if (!candidates.length) return;
 
-    // Διάλεξε την "nice" τιμή που είναι πιο κοντά στο targetMeters
     const targetMeters = mPerPx * targetPx;
     let best = candidates[0];
     let bestScore = Math.abs(Math.log(best / targetMeters));
@@ -1630,21 +1629,19 @@ const ScaleControl = L.Control.extend({
     const nice = best;
     const px = nice / mPerPx;
 
-    // ---- ΣΧΕΔΙΑΣΗ ΜΠΑΡΑΣ ----
-    this._bar.style.width = `${px}px`;
-    this._bar.style.height = '10px';
-    this._bar.style.border = '1px solid #000';
-    this._bar.style.borderRadius = '6px';
-    this._bar.style.overflow = 'hidden';
+this._bar.style.width = `${px}px`;
+this._bar.style.height = '10px';
+this._bar.style.border = '1px solid #000';
+this._bar.style.borderRadius = '6px';
+this._bar.style.overflow = 'hidden';
 
-    this._bar.style.background =
-      'linear-gradient(90deg,' +
-        '#000 0, #000 25%,' +   // 0–25%
-        '#fff 25%, #fff 50%,' + // 25–50%
-        '#000 50%, #000 100%' + // 50–100%
-      ')';
+this._bar.style.background =
+  'linear-gradient(90deg,' +
+    '#000 0, #000 25%,' +
+    '#fff 25%, #fff 50%,' +
+    '#000 50%, #000 100%' +
+  ')';
 
-    // --- Labels πάνω ακριβώς στις τομές (0%, 25%, 50%, 100%) ---
     this._labels.innerHTML = '';
     this._labels.style.position = 'relative';
     this._labels.style.width = `${px - 2}px`;
@@ -1675,20 +1672,17 @@ const ScaleControl = L.Control.extend({
         div.style.textAlign = 'center';
       }
 
-      // formatMeters(t.val, false) – χρησιμοποιεί τη συνάρτηση που έχεις ήδη πιο πάνω
       div.textContent = formatMeters(t.val, false);
       this._labels.appendChild(div);
     }
 
-    // Μονάδα δεξιά — Km ή m, πάντα μαύρο
     this._unit.textContent = nice >= 1000 ? 'Km' : 'm';
-  },
+  }
 });
 
-
+// εδώ πλέον:
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
-
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
   function mPerPxAt(lat, zoom){
