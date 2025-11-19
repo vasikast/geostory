@@ -1722,6 +1722,12 @@ map.whenReady(() => {
     const z = Math.log2(K / denom);
     return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
   }
+  function denomFromZoom(lat, zoom){
+  const R = 6378137;
+  const DPI = (window.devicePixelRatio || 1) * 96;
+  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+  return K / Math.pow(2, zoom);
+}
   function parseScaleInput(s){
     if(!s) return null;
     s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
@@ -1835,38 +1841,61 @@ map.whenReady(() => {
     });
 
     // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
-let isLocked = false;
-function setLock(on){
-  isLocked = !!on;
-  zoomLocked = isLocked;                      // 🔒 ενημερώνουμε το global flag
-  lock.classList.toggle('active', isLocked);
+    // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
+    let isLocked = false;
+    function setLock(on){
+      isLocked = !!on;
+      zoomLocked = isLocked;                      // 🔒 ενημερώνουμε το global flag
+      lock.classList.toggle('active', isLocked);
 
-  const container = map.getContainer();
+      const container = map.getContainer();
 
-  if (isLocked){
-    map.scrollWheelZoom.disable();
-    map.touchZoom.disable();
-    map.boxZoom.disable();
-    map.keyboard.disable();
-    map.doubleClickZoom.disable();
+      if (isLocked){
+        map.scrollWheelZoom.disable();
+        map.touchZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        map.doubleClickZoom.disable();
 
-    container.classList.add('zoom-locked');
-  } else {
-    map.scrollWheelZoom.enable();
-    map.touchZoom.enable();
-    map.boxZoom.enable();
-    map.keyboard.enable();
-    map.doubleClickZoom.enable();
+        container.classList.add('zoom-locked');
+      } else {
+        map.scrollWheelZoom.enable();
+        map.touchZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        map.doubleClickZoom.enable();
 
-    container.classList.remove('zoom-locked');
-  }
-}
-
-
+        container.classList.remove('zoom-locked');
+      }
+    }
 
     lock.addEventListener('click', (e)=>{
       e.preventDefault(); e.stopPropagation(); setLock(!isLocked);
     });
+
+    // ---- Auto-update του input όταν αλλάζει η θέα ----
+    function updateScaleFromView(){
+      const lat   = map.getCenter().lat;
+      const z     = map.getZoom();
+      const denom = denomFromZoom(lat, z);
+      if (!isFinite(denom) || denom <= 0) return;
+
+      let txt;
+      if (denom >= 1e6) {
+        // π.χ. 2m = 1:2.000.000
+        txt = (denom/1e6).toFixed(2).replace(/\.0+$/,'') + 'm';
+      } else if (denom >= 1e3) {
+        // π.χ. 25k = 1:25.000
+        txt = (denom/1e3).toFixed(0) + 'k';
+      } else {
+        txt = denom.toFixed(0);
+      }
+      inp.value = txt;
+    }
+
+    // Άκου zoom / move και κάνε αρχικό sync
+    map.on('zoomend moveend', updateScaleFromView);
+    setTimeout(updateScaleFromView, 0);
 
     L.DomEvent.disableClickPropagation(bar);
     return bar;
