@@ -1571,71 +1571,109 @@ const ScaleControl = L.Control.extend({
     return div;
   },
   update() {
-  const R = 6378137;
-  const lat = map.getCenter().lat * Math.PI / 180;
-  const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
-  const targetPx = 200;
-  const targetMeters = mPerPx * targetPx;
-  const nice = pickNice(targetMeters);
-  const px = nice / mPerPx;
+    const R = 6378137;
+    const lat = map.getCenter().lat * Math.PI / 180;
+    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
 
-  // πλάτος μπάρας
-  this._bar.style.width = `${px}px`;
-  this._bar.style.height = '10px';
-  this._bar.style.border = '1px solid #000';
+    // Περιορισμοί πλάτους μπάρας (σε pixels)
+    const minPx = 60;
+    const maxPx = 200;
+    const targetPx = 140; // “ιδανικό” πλάτος στο περίπου
 
-  // μαύρο–άσπρο–μαύρο με ΟΡΙΑ ακριβώς στο 25% και 50%
-  this._bar.style.background =
-    'linear-gradient(90deg,' +
-      '#000 0, #000 25%,' +   // 0–25%
-      '#fff 25%, #fff 50%,' + // 25–50%
-      '#000 50%, #000 100%' + // 50–100%
-    ')';
+    const minMeters = mPerPx * minPx;
+    const maxMeters = mPerPx * maxPx;
 
-  // labels επάνω (0, 25%, 50%, 100%)
-  // labels επάνω (0, 25%, 50%, 100%) με ακριβές κέντρο επάνω στις γραμμές
-// --- ΑΚΡΙΒΗΣ ΤΟΠΟΘΕΤΗΣΗ LABELS ΠΑΝΩ ΣΤΙΣ ΤΟΜΕΣ (0%,25%,50%,75%,100%) ---
-this._labels.innerHTML = '';
-// Τα labels να "μετράνε" στο εσωτερικό της μπάρας (px-2 για τα borders)
-this._labels.style.position = 'relative';
-this._labels.style.width = `${px - 2}px`;
-this._labels.style.marginLeft = '1px';
-this._labels.style.height = '14px';
-this._labels.style.marginBottom = '2px';
+    if (!isFinite(minMeters) || minMeters <= 0) return;
 
-const ticks = [
-  { pos: 0,    val: 0 },
-  { pos: 0.25, val: nice * 0.25 },
-  { pos: 0.5,  val: nice * 0.5 },
-  { pos: 1,    val: nice }
-];
+    // Φτιάχνουμε "nice" τιμές: 1, 2, 5 × 10^n
+    const bases = [1, 2, 5];
+    const candidates = [];
+    const minExp = Math.floor(Math.log10(minMeters)) - 1;
+    const maxExp = Math.ceil(Math.log10(maxMeters)) + 1;
 
-for (const t of ticks) {
-  const div = document.createElement('div');
-  div.style.position = 'absolute';
-  div.style.left = `${t.pos * 100}%`;
+    for (let e = minExp; e <= maxExp; e++) {
+      const factor = Math.pow(10, e);
+      for (const b of bases) {
+        const val = b * factor;
+        if (val >= minMeters && val <= maxMeters) {
+          candidates.push(val);
+        }
+      }
+    }
 
-  // άκρα "κολλητά", μεσαία κεντραρισμένα ακριβώς στη τομή
-  if (t.pos === 0) {
-    div.style.transform = 'translateX(0%)';
-    div.style.textAlign = 'left';
-  } else if (t.pos === 1) {
-    div.style.transform = 'translateX(-100%)';
-    div.style.textAlign = 'right';
-  } else {
-    div.style.transform = 'translateX(-50%)';
-    div.style.textAlign = 'center';
-  }
+    if (!candidates.length) return;
 
-  div.textContent = formatMeters(t.val, false);
-  this._labels.appendChild(div);
-}
+    // Διάλεξε την "nice" τιμή που είναι πιο κοντά στο targetMeters
+    const targetMeters = mPerPx * targetPx;
+    let best = candidates[0];
+    let bestScore = Math.abs(Math.log(best / targetMeters));
 
+    for (const v of candidates) {
+      const s = Math.abs(Math.log(v / targetMeters));
+      if (s < bestScore) {
+        best = v;
+        bestScore = s;
+      }
+    }
 
-  // Μονάδα δεξιά — πάντα «Km» (Κ κεφαλαίο, m μικρό), χωρίς bold, πάντα μαύρο
-  this._unit.textContent = nice >= 1000 ? 'Km' : 'm';
-},
+    const nice = best;
+    const px = nice / mPerPx;
+
+    // ---- ΣΧΕΔΙΑΣΗ ΜΠΑΡΑΣ ----
+    this._bar.style.width = `${px}px`;
+    this._bar.style.height = '10px';
+    this._bar.style.border = '1px solid #000';
+    this._bar.style.borderRadius = '6px';
+    this._bar.style.overflow = 'hidden';
+
+    this._bar.style.background =
+      'linear-gradient(90deg,' +
+        '#000 0, #000 25%,' +   // 0–25%
+        '#fff 25%, #fff 50%,' + // 25–50%
+        '#000 50%, #000 100%' + // 50–100%
+      ')';
+
+    // --- Labels πάνω ακριβώς στις τομές (0%, 25%, 50%, 100%) ---
+    this._labels.innerHTML = '';
+    this._labels.style.position = 'relative';
+    this._labels.style.width = `${px - 2}px`;
+    this._labels.style.marginLeft = '1px';
+    this._labels.style.height = '14px';
+    this._labels.style.marginBottom = '2px';
+
+    const ticks = [
+      { pos: 0,    val: 0 },
+      { pos: 0.25, val: nice * 0.25 },
+      { pos: 0.5,  val: nice * 0.5 },
+      { pos: 1,    val: nice }
+    ];
+
+    for (const t of ticks) {
+      const div = document.createElement('div');
+      div.style.position = 'absolute';
+      div.style.left = `${t.pos * 100}%`;
+
+      if (t.pos === 0) {
+        div.style.transform = 'translateX(0%)';
+        div.style.textAlign = 'left';
+      } else if (t.pos === 1) {
+        div.style.transform = 'translateX(-100%)';
+        div.style.textAlign = 'right';
+      } else {
+        div.style.transform = 'translateX(-50%)';
+        div.style.textAlign = 'center';
+      }
+
+      // formatMeters(t.val, false) – χρησιμοποιεί τη συνάρτηση που έχεις ήδη πιο πάνω
+      div.textContent = formatMeters(t.val, false);
+      this._labels.appendChild(div);
+    }
+
+    // Μονάδα δεξιά — Km ή m, πάντα μαύρο
+    this._unit.textContent = nice >= 1000 ? 'Km' : 'm';
+  },
 });
+
 
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
