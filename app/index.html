@@ -1685,18 +1685,27 @@ const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
-  function mPerPxAt(lat, zoom){
-    const R = 6378137; // meters
-    return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
-  }
-  function zoomForDenom(lat, denom){
-    const R = 6378137;
-    const DPI = (window.devicePixelRatio || 1) * 96;
-    const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
-    const z = Math.log2(K / denom);
-    return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
-  }
-  function parseScaleInput(s){
+function mPerPxAt(lat, zoom){
+  const R = 6378137; // meters
+  return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
+}
+
+function denomFromZoom(lat, zoom){
+  const R = 6378137;
+  const DPI = (window.devicePixelRatio || 1) * 96;
+  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+  // εδώ υπολογίζουμε τον παρονομαστή 1:Ν
+  return K / Math.pow(2, zoom);
+}
+
+function zoomForDenom(lat, denom){
+  const R = 6378137;
+  const DPI = (window.devicePixelRatio || 1) * 96;
+  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+  const z = Math.log2(K / denom);
+  return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
+}
+function parseScaleInput(s){
     if(!s) return null;
     s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
     s = s.replace(/[.\s,]/g,'');
@@ -1836,11 +1845,32 @@ function setLock(on){
   }
 }
 
-
-
     lock.addEventListener('click', (e)=>{
       e.preventDefault(); e.stopPropagation(); setLock(!isLocked);
     });
+
+    // --- Auto-update του scaleInput όταν αλλάζει η θέα ---
+    function updateScaleFromView(){
+      const lat   = map.getCenter().lat;
+      const z     = map.getZoom();
+      const denom = denomFromZoom(lat, z);
+      if (!isFinite(denom) || denom <= 0) return;
+
+      let txt;
+      if (denom >= 1e6) {
+        // 1:2.50m κτλ
+        txt = (denom/1e6).toFixed(2).replace(/\.0+$/,'') + 'm';
+      } else if (denom >= 1e3) {
+        // 1:25k κτλ
+        txt = (denom/1e3).toFixed(0) + 'k';
+      } else {
+        txt = denom.toFixed(0);
+      }
+      inp.value = txt;
+    }
+
+    map.on('zoomend moveend', updateScaleFromView);
+    setTimeout(updateScaleFromView, 0); // αρχικό sync
 
     L.DomEvent.disableClickPropagation(bar);
     return bar;
