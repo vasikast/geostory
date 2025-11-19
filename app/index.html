@@ -1558,14 +1558,10 @@ function formatMeters(m, unit = true) {
 const ScaleControl = L.Control.extend({
   options: { position: 'bottomleft' },
 
-  onAdd: function (map) {
-    this._map = map;                      // αποθηκεύουμε αναφορά στον χάρτη
-
+  onAdd: function () {
     const div = L.DomUtil.create('div', 'leaflet-control scale-control');
-
     // labels επάνω
     this._labels = L.DomUtil.create('div', 'scale-labels', div);
-
     // σειρά: μπάρα + μονάδα δεξιά
     this._row = L.DomUtil.create('div', '', div);
     this._row.style.display = 'flex';
@@ -1582,39 +1578,19 @@ const ScaleControl = L.Control.extend({
     this._unit.style.userSelect = 'none';
     this._unit.style.fontWeight = 'normal';
 
-    // bind update ώστε να έχουμε σωστό this
-    this._onMapChange = this.update.bind(this);
-
-    // καλύτερα στα τελικά events
-    map.on('moveend zoomend', this._onMapChange);
-
-    // αρχική ενημέρωση
     this.update();
-
+    map.on('move zoom', () => this.update());
     return div;
   },
 
-  onRemove: function (map) {
-    // καθάρισμα events όταν αφαιρεθεί το control
-    if (this._onMapChange) {
-      map.off('moveend zoomend', this._onMapChange);
-    }
-  },
-
-  update: function () {
-    const map = this._map;
-    if (!map) return;
-
+  update() {
     const R = 6378137;
     const lat = map.getCenter().lat * Math.PI / 180;
-    const zoom = map.getZoom();
-    if (!isFinite(zoom)) return;
-
-    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
+    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
 
     const minPx = 180;
-    const maxPx = 260;
-    const targetPx = 220;
+    const maxPx = 220;
+    const targetPx = 200;
 
     const minMeters = mPerPx * minPx;
     const maxMeters = mPerPx * maxPx;
@@ -1653,17 +1629,18 @@ const ScaleControl = L.Control.extend({
     const nice = best;
     const px = nice / mPerPx;
 
-    this._bar.style.width = `${px}px`;
-    this._bar.style.height = '10px';
-    this._bar.style.border = '1px solid #000';
-    this._bar.style.borderRadius = '6px';
-    this._bar.style.overflow = 'hidden';
-    this._bar.style.background =
-      'linear-gradient(90deg,' +
-        '#000 0, #000 25%,' +
-        '#fff 25%, #fff 50%,' +
-        '#000 50%, #000 100%' +
-      ')';
+this._bar.style.width = `${px}px`;
+this._bar.style.height = '10px';
+this._bar.style.border = '1px solid #000';
+this._bar.style.borderRadius = '6px';
+this._bar.style.overflow = 'hidden';
+
+this._bar.style.background =
+  'linear-gradient(90deg,' +
+    '#000 0, #000 25%,' +
+    '#fff 25%, #fff 50%,' +
+    '#000 50%, #000 100%' +
+  ')';
 
     this._labels.innerHTML = '';
     this._labels.style.position = 'relative';
@@ -1703,12 +1680,9 @@ const ScaleControl = L.Control.extend({
   }
 });
 
-// και στο τέλος:
+// εδώ πλέον:
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
-map.whenReady(() => {
-  scaleCtl.update();
-});
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
   function mPerPxAt(lat, zoom){
@@ -1722,12 +1696,6 @@ map.whenReady(() => {
     const z = Math.log2(K / denom);
     return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
   }
-  function denomFromZoom(lat, zoom){
-  const R = 6378137;
-  const DPI = (window.devicePixelRatio || 1) * 96;
-  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
-  return K / Math.pow(2, zoom);
-}
   function parseScaleInput(s){
     if(!s) return null;
     s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
@@ -1841,61 +1809,38 @@ map.whenReady(() => {
     });
 
     // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
-    // lock (απενεργοποιεί ροδέλα/αφή για να μην αλλάζει η κλίμακα)
-    let isLocked = false;
-    function setLock(on){
-      isLocked = !!on;
-      zoomLocked = isLocked;                      // 🔒 ενημερώνουμε το global flag
-      lock.classList.toggle('active', isLocked);
+let isLocked = false;
+function setLock(on){
+  isLocked = !!on;
+  zoomLocked = isLocked;                      // 🔒 ενημερώνουμε το global flag
+  lock.classList.toggle('active', isLocked);
 
-      const container = map.getContainer();
+  const container = map.getContainer();
 
-      if (isLocked){
-        map.scrollWheelZoom.disable();
-        map.touchZoom.disable();
-        map.boxZoom.disable();
-        map.keyboard.disable();
-        map.doubleClickZoom.disable();
+  if (isLocked){
+    map.scrollWheelZoom.disable();
+    map.touchZoom.disable();
+    map.boxZoom.disable();
+    map.keyboard.disable();
+    map.doubleClickZoom.disable();
 
-        container.classList.add('zoom-locked');
-      } else {
-        map.scrollWheelZoom.enable();
-        map.touchZoom.enable();
-        map.boxZoom.enable();
-        map.keyboard.enable();
-        map.doubleClickZoom.enable();
+    container.classList.add('zoom-locked');
+  } else {
+    map.scrollWheelZoom.enable();
+    map.touchZoom.enable();
+    map.boxZoom.enable();
+    map.keyboard.enable();
+    map.doubleClickZoom.enable();
 
-        container.classList.remove('zoom-locked');
-      }
-    }
+    container.classList.remove('zoom-locked');
+  }
+}
+
+
 
     lock.addEventListener('click', (e)=>{
       e.preventDefault(); e.stopPropagation(); setLock(!isLocked);
     });
-
-    // ---- Auto-update του input όταν αλλάζει η θέα ----
-    function updateScaleFromView(){
-      const lat   = map.getCenter().lat;
-      const z     = map.getZoom();
-      const denom = denomFromZoom(lat, z);
-      if (!isFinite(denom) || denom <= 0) return;
-
-      let txt;
-      if (denom >= 1e6) {
-        // π.χ. 2m = 1:2.000.000
-        txt = (denom/1e6).toFixed(2).replace(/\.0+$/,'') + 'm';
-      } else if (denom >= 1e3) {
-        // π.χ. 25k = 1:25.000
-        txt = (denom/1e3).toFixed(0) + 'k';
-      } else {
-        txt = denom.toFixed(0);
-      }
-      inp.value = txt;
-    }
-
-    // Άκου zoom / move και κάνε αρχικό sync
-    map.on('zoomend moveend', updateScaleFromView);
-    setTimeout(updateScaleFromView, 0);
 
     L.DomEvent.disableClickPropagation(bar);
     return bar;
