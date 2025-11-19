@@ -377,22 +377,6 @@
   #attrwin, #sharewin { pointer-events: auto !important; z-index: 99999 !important; }
   #attrwin-header, #sharewin-header { cursor: move !important; pointer-events: auto !important; }
   #attrwin *, #sharewin * { user-select: auto !important; }
-/* Zoom controls: διακριτικό pulse όταν πατάς */
-.leaflet-control-zoom a{
-  position: relative;
-  transition: transform .12s ease, box-shadow .18s ease, filter .18s ease;
-}
-
-.leaflet-control-zoom a.pulse{
-  animation: zoomTap .18s ease-out;
-}
-
-@keyframes zoomTap{
-  0%   { transform: scale(1); }
-  50%  { transform: scale(0.94); }
-  100% { transform: scale(1); }
-}
-
 
 /* --- Force-hide default Leaflet/leaflet-ui overlays we don't want --- */
 .leaflet-gesture-handling-warning{ display:none !important; } /* γκρι μήνυμα */
@@ -796,21 +780,6 @@ let zoomLocked = false;
 // custom zoom control, ΠΑΝΩ ΑΡΙΣΤΕΡΑ
 L.control.zoom({ position: 'topleft' }).addTo(map);
 
-
-// Zoom pulse animation on click
-const zoomCtrlEl = document.querySelector('.leaflet-control-zoom');
-if (zoomCtrlEl){
-  zoomCtrlEl.addEventListener('click', (e)=>{
-    const btn = e.target.closest('a');
-    if (!btn) return;
-    btn.classList.remove('pulse');
-    // force reflow
-    void btn.offsetWidth;
-    btn.classList.add('pulse');
-  });
-}
-
-// εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 // εξασφάλισε ότι λειτουργεί η ροδέλα/zoom χωρίς overlay
 map.scrollWheelZoom.enable();
 map.touchZoom.enable();
