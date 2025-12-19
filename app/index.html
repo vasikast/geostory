@@ -1694,13 +1694,17 @@ map.addControl(scaleCtl);
     const R = 6378137; // meters
     return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
   }
-  function zoomForDenom(lat, denom){
-    const R = 6378137;
-    const DPI = (window.devicePixelRatio || 1) * 96;
-    const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
-    const z = Math.log2(K / denom);
-    return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
-  }
+function zoomForDenom(lat, denom){
+  const R = 6378137;
+
+  // ✅ Χρησιμοποιούμε calibrated screen DPI (για να συμφωνεί με χάρακα στην οθόνη)
+  // Αν δεν έχεις calibration, βάλε default 120 (στο δικό σου case 4cm→5cm δείχνει ~120)
+  const DPI = Number(localStorage.getItem('screenDPI')) || 120;
+
+  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
+  const z = Math.log2(K / denom);
+  return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
+}
   function parseScaleInput(s){
     if(!s) return null;
     s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
@@ -1711,6 +1715,10 @@ map.addControl(scaleCtl);
     if(!isFinite(n) || n<=0) return null;
     return n;
   }
+function setScreenDPI(dpi){
+  localStorage.setItem('screenDPI', String(dpi));
+  alert(`Saved screenDPI=${dpi}. Τώρα το 1:Χ θα ταιριάζει με χάρακα (με ίδιο browser zoom).`);
+}
 
  const TopBarControl = L.Control.extend({
   options: { position: 'bottomright' },
