@@ -1696,7 +1696,7 @@ map.addControl(scaleCtl);
   }
   function zoomForDenom(lat, denom){
     const R = 6378137;
-    const DPI = 96;
+    const DPI = (window.devicePixelRatio || 1) * 96;
     const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
     const z = Math.log2(K / denom);
     return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
