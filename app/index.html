@@ -1587,7 +1587,9 @@ const ScaleControl = L.Control.extend({
   update() {
     const R = 6378137;
     const lat = map.getCenter().lat * Math.PI / 180;
-    const mPerPx = Math.cos(lat) * 2 * Math.PI * R / (256 * Math.pow(2, map.getZoom()));
+    const center = map.getCenter();
+const mPerPx = metersPerPixelAt(center, map.getZoom());
+
 
     // Περιορισμοί πλάτους μπάρας (σε pixels)
     const minPx = 60;
@@ -1694,21 +1696,35 @@ map.addControl(scaleCtl);
 
 
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
-  function mPerPxAt(lat, zoom){
-    const R = 6378137; // meters
-    return Math.cos(lat*Math.PI/180) * 2 * Math.PI * R / (256 * Math.pow(2, zoom));
-  }
-function zoomForDenom(lat, denom){
-  const R = 6378137;
-
-  // ✅ Χρησιμοποιούμε calibrated screen DPI (για να συμφωνεί με χάρακα στην οθόνη)
-  // Αν δεν έχεις calibration, βάλε default 120 (στο δικό σου case 4cm→5cm δείχνει ~120)
-  const DPI = Number(localStorage.getItem('screenDPI')) || 120;
-
-  const K = Math.cos(lat*Math.PI/180) * 2 * Math.PI * R * (DPI/0.0254) / 256;
-  const z = Math.log2(K / denom);
-  return Math.max(map.getMinZoom() ?? 0, Math.min(map.getMaxZoom() ?? 19, z));
+// === TRUE meters-per-pixel using Leaflet geometry (works for any CRS, retina, fractional zoom) ===
+function metersPerPixelAt(latlng, zoom){
+  const p1 = map.project(latlng, zoom);       // world pixel
+  const p2 = L.point(p1.x + 100, p1.y);       // +100 px east
+  const ll2 = map.unproject(p2, zoom);
+  return map.distance(latlng, ll2) / 100;     // meters per 1 px
 }
+
+// Finds zoom so that scale ~ 1:denom at CURRENT center (binary search)
+function zoomForDenom(denom){
+ const DPI = Number(localStorage.getItem('screenDPI')) || 96;
+
+
+  const targetMpp = denom * 0.0254 / DPI;     // meters per pixel needed for 1:denom
+
+  const center = map.getCenter();
+  let lo = map.getMinZoom() ?? 0;
+  let hi = map.getMaxZoom() ?? 19;
+
+  for (let i = 0; i < 32; i++){
+    const mid = (lo + hi) / 2;
+    const mpp = metersPerPixelAt(center, mid);
+
+    if (mpp > targetMpp) lo = mid; // need zoom in
+    else hi = mid;
+  }
+  return hi;
+}
+
   function parseScaleInput(s){
     if(!s) return null;
     s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
@@ -1722,6 +1738,11 @@ function zoomForDenom(lat, denom){
 function setScreenDPI(dpi){
   localStorage.setItem('screenDPI', String(dpi));
   alert(`Saved screenDPI=${dpi}. Τώρα το 1:Χ θα ταιριάζει με χάρακα (με ίδιο browser zoom).`);
+}
+function calibrateDPIfromRuler(mm, pixels=1000){
+  const dpi = pixels / (mm / 25.4);
+  localStorage.setItem('screenDPI', String(dpi));
+  alert(`Saved screenDPI=${dpi.toFixed(2)}. Μην αλλάξεις browser zoom μετά.`);
 }
 
  const TopBarControl = L.Control.extend({
@@ -1812,9 +1833,9 @@ function setScreenDPI(dpi){
         alert('Δώσε έγκυρη κλίμακα π.χ. 5000, 1:25000, 10k, 1:2m');
         return;
       }
-      const lat = map.getCenter().lat;
-      const z = zoomForDenom(lat, n);
-      map.setZoom(z);
+const z = zoomForDenom(n);
+map.setZoom(z);
+
     }
     go.addEventListener('click', (e)=>{
       e.preventDefault(); e.stopPropagation(); applyScale();
