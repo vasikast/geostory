@@ -812,7 +812,10 @@ const map = L.map('map', {
   bearing: 0,
   touchRotate: true,
   shiftKeyRotate: true,
-  gestureHandling: false
+  gestureHandling: false,
+
+  zoomSnap: 0,      // ✅ να δέχεται δεκαδικά zoom (λύση στο πρόβλημα)
+  zoomDelta: 0.25   // ✅ προαιρετικό: πιο “ομαλό” +/- και wheel
 });
 
 // 🔒 Global μεταβλητή για το Lock
