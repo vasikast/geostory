@@ -1087,6 +1087,19 @@ const NorthControl = L.Control.extend({
     reds:  ["#fee5d9","#fcbba1","#fc9272","#fb6a4a","#de2d26","#a50f15"],
     greens:["#edf8e9","#c7e9c0","#74c476","#41ab5d","#238b45","#005a32"]
   };
+function colorsForCategories(n, palette){
+  const base = Array.isArray(palette) && palette.length ? palette : PALETTES.category10;
+  const out = [];
+  for(let i=0;i<n;i++){
+    if(i < base.length){
+      out.push(base[i]);
+    } else {
+      const h = ((i - base.length) * 137.508) % 360;
+      out.push(`hsl(${h} 70% 55%)`);
+    }
+  }
+  return out;
+}
 
   // ---------- IDENTIFY ----------
   const identify = { active:false, layerId:null, btnEl:null };
@@ -1350,50 +1363,113 @@ const NorthControl = L.Control.extend({
     sp.blocks.field.style.display = (mode!=='single')?'block':'none';
     sp.blocks.classes.style.display = (mode==='graduated')?'block':'none';
   }
-  sp.renderer.addEventListener('change', e=> reflectRendererBlocks(e.target.value));
+  sp.renderer.addEventListener('change', e=>{
+  reflectRendererBlocks(e.target.value);
+  const LYR = layers.find(x=>x.id===sp.layerId);
+  if(LYR) rebuildLegendPreview(LYR);
+});
 
-  function rebuildLegendPreview(LYR){
-    const mode = sp.renderer.value;
-    const legend = sp.field.legend; legend.innerHTML = '';
-    if(mode==='single'){
-      const s=LYR.style.single;
-      const el=document.createElement('div'); el.className='item';
-      el.innerHTML=`<span class="badge" style="background:${s.fill};border-color:${s.fill}"></span> Single`;
-      legend.appendChild(el);
-      return;
-    }
-    const field = sp.field.field.value;
-    if(!field) return;
-    const palette = PALETTES[sp.field.palette.value] || PALETTES.category10;
-    const feats = (LYR.gj.features||[]);
-    if(mode==='unique'){
-      const uniq = [...new Set(feats.map(f=> String(f.properties?.[field])))].slice(0, palette.length);
-      const items = uniq.map((v,i)=>({value:v,color:palette[i%palette.length]}));
-      legend.dataset.items = JSON.stringify(items);
-      items.forEach(it=>{
-        const el=document.createElement('div'); el.className='item';
-        el.innerHTML=`<span class="badge" style="background:${it.color};border-color:${it.color}"></span> ${escapeHtml(it.value)}`;
-        legend.appendChild(el);
-      });
-    } else if(mode==='graduated'){
-      const k = Math.max(3, Math.min(9, Number(sp.field.classes.value)||5));
-      const nums = feats.map(f=> Number(f.properties?.[field])).filter(x=>isFinite(x));
-      legend.innerHTML = '';
-      if(nums.length===0){ return; }
-      const br = quantiles(nums, k);
-      const cols = (PALETTES[sp.field.palette.value]||PALETTES.viridis);
-      const grad = Array.from({length:k},(_,i)=> cols[Math.floor(i*(cols.length-1)/(k-1))]);
-      legend.dataset.breaks = JSON.stringify(br);
-      legend.dataset.colors = JSON.stringify(grad);
-      const bounds = [Math.min(...nums), ...br, Math.max(...nums)];
-      for(let i=0;i<k;i++){
-        const label = `${bounds[i].toFixed(2)} – ${bounds[i+1].toFixed(2)}`;
-        const el=document.createElement('div'); el.className='item';
-        el.innerHTML=`<span class="badge" style="background:${grad[i]};border-color:${grad[i]}"></span> ${label}`;
-        legend.appendChild(el);
-      }
-    }
+function rebuildLegendPreview(LYR){
+  const mode = sp.renderer.value;
+  const legend = sp.field.legend;
+  legend.innerHTML = '';
+
+  if(mode === 'single'){
+    const s = LYR.style.single;
+    const el = document.createElement('div');
+    el.className = 'item';
+    el.innerHTML = `<span class="badge" style="background:${s.fill};border-color:${s.fill}"></span> Single`;
+    legend.appendChild(el);
+    return;
   }
+
+  const field = sp.field.field.value;
+  if(!field) return;
+
+  const feats = (LYR.gj.features || []);
+
+  if(mode === 'unique'){
+    const uniq = [];
+    const seen = new Set();
+
+    for(const f of feats){
+      const raw = f?.properties?.[field];
+      if(raw === undefined) continue;
+      const v = (raw === null) ? '(null)' : String(raw);
+      if(seen.has(v)) continue;
+      seen.add(v);
+      uniq.push(v);
+    }
+    if(!uniq.length) return;
+
+    const paletteKey = sp.field.palette.value;
+    const paletteArr = PALETTES[paletteKey] || PALETTES.category10;
+
+    const colors = colorsForCategories(uniq.length, paletteArr);
+    const items = uniq.map((v,i)=>({ value:v, color:colors[i] }));
+
+    // Αποθήκευση για Apply
+    legend.dataset.items = JSON.stringify(items);
+    legend.dataset.paletteKey = paletteKey;
+    legend.dataset.field = field;
+
+    // Preview (κόφτης)
+    const PREVIEW_MAX = 60;
+    const show = items.slice(0, PREVIEW_MAX);
+
+    for(const it of show){
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.innerHTML = `<span class="badge" style="background:${it.color};border-color:${it.color}"></span> ${escapeHtml(it.value)}`;
+      legend.appendChild(el);
+    }
+
+    if(items.length > PREVIEW_MAX){
+      const more = document.createElement('div');
+      more.className = 'muted';
+      more.style.marginTop = '6px';
+      more.textContent = `+ ${items.length - PREVIEW_MAX} more… (θα εφαρμοστούν κανονικά)`;
+      legend.appendChild(more);
+    }
+
+    return;
+  }
+
+  if(mode === 'graduated'){
+    const k = Math.max(3, Math.min(9, Number(sp.field.classes.value) || 5));
+    const nums = feats
+      .map(f => Number(f?.properties?.[field]))
+      .filter(x => isFinite(x));
+
+    if(nums.length === 0) return;
+
+    const br = quantiles(nums, k);
+    const paletteKey = sp.field.palette.value;
+    const cols = PALETTES[paletteKey] || PALETTES.viridis;
+
+    const grad = Array.from({length:k},(_,i)=>
+      cols[Math.floor(i * (cols.length - 1) / (k - 1))]
+    );
+
+    // Αποθήκευση για Apply
+    legend.dataset.breaks = JSON.stringify(br);
+    legend.dataset.colors = JSON.stringify(grad);
+    legend.dataset.paletteKey = paletteKey;
+    legend.dataset.field = field;
+    legend.dataset.classes = String(k);
+
+    const bounds = [Math.min(...nums), ...br, Math.max(...nums)];
+    for(let i=0;i<k;i++){
+      const label = `${bounds[i].toFixed(2)} – ${bounds[i+1].toFixed(2)}`;
+      const el = document.createElement('div');
+      el.className = 'item';
+      el.innerHTML = `<span class="badge" style="background:${grad[i]};border-color:${grad[i]}"></span> ${label}`;
+      legend.appendChild(el);
+    }
+    return;
+  }
+}
+
   sp.field.field.addEventListener('change', ()=> {
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     rebuildLegendPreview(LYR);
@@ -1408,46 +1484,109 @@ const NorthControl = L.Control.extend({
   });
 
   sp.apply.onclick = ()=>{
-    const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
-    const mode = sp.renderer.value;
-    LYR.style.renderer = mode;
-    if(mode==='single'){
-      Object.assign(LYR.style.single, {
-        fill: sp.single.fill.value,
-        stroke: sp.single.stroke.value,
-        width: Number(sp.single.width.value)||2,
-        opacity: Number(sp.single.opacity.value)||0.75,
-        pointSize: Number(sp.single.ptSize.value)||10,
-        pointShape: sp.single.ptShape.value
-      });
-    } else {
-      const field = sp.field.field.value;
-      if(!field){ alert('Διάλεξε πεδίο για Unique/Graduated.'); return; }
-      const feats = (LYR.gj.features||[]);
-      const vals = feats.map(f=> f?.properties?.[field]).filter(v=> v!==undefined && v!==null);
-      if(mode==='unique'){
-        if(vals.length===0){ alert('Δεν βρέθηκαν τιμές στο πεδίο.'); return; }
-        const items = JSON.parse(sp.field.legend.dataset.items||'[]');
-        LYR.style.unique.field = field;
-        LYR.style.unique.palette = sp.field.palette.value;
-        LYR.style.unique.legend = items;
-      } else if(mode==='graduated'){
-        const nums = vals.map(Number).filter(x=>isFinite(x));
-        if(nums.length===0){ alert('Για Graduated χρειάζονται αριθμητικές τιμές.'); return; }
-        const breaks = JSON.parse(sp.field.legend.dataset.breaks||'[]');
-        const colors = JSON.parse(sp.field.legend.dataset.colors||'[]').map((c,i)=>({i,color:c}));
-        LYR.style.graduated.field = field;
-        LYR.style.graduated.classes = Number(sp.field.classes.value)||5;
-        LYR.style.graduated.palette = sp.field.palette.value;
-        LYR.style.graduated.breaks = breaks;
-        LYR.style.graduated.legend = colors;
-      }
+  const LYR = layers.find(x=>x.id===sp.layerId);
+  if(!LYR) return;
+
+  const mode = sp.renderer.value;
+  LYR.style.renderer = mode;
+
+  if(mode === 'single'){
+    Object.assign(LYR.style.single, {
+      fill: sp.single.fill.value,
+      stroke: sp.single.stroke.value,
+      width: Number(sp.single.width.value) || 2,
+      opacity: Number(sp.single.opacity.value) || 0.75,
+      pointSize: Number(sp.single.ptSize.value) || 10,
+      pointShape: sp.single.ptShape.value
+    });
+  } else {
+    const field = sp.field.field.value;
+    if(!field){
+      alert('Διάλεξε πεδίο για Unique/Graduated.');
+      return;
     }
-    map.removeLayer(LYR.leaflet);
-    LYR.leaflet = buildLeaflet(LYR);
-    if(LYR.visible) LYR.leaflet.addTo(map);
-    closeStylePanel();
-  };
+
+    const feats = (LYR.gj.features || []);
+
+    if(mode === 'unique'){
+      const uniq = [];
+      const seen = new Set();
+
+      for(const f of feats){
+        const raw = f?.properties?.[field];
+        if(raw === undefined) continue;
+        const v = (raw === null) ? '(null)' : String(raw);
+        if(seen.has(v)) continue;
+        seen.add(v);
+        uniq.push(v);
+      }
+      if(!uniq.length){
+        alert('Δεν βρέθηκαν τιμές για το πεδίο που επέλεξες.');
+        return;
+      }
+
+      const paletteKey = sp.field.palette.value;
+      const paletteArr = PALETTES[paletteKey] || PALETTES.category10;
+      const colors = colorsForCategories(uniq.length, paletteArr);
+      const items = uniq.map((v,i)=>({ value:v, color:colors[i] }));
+
+      LYR.style.unique.field = field;
+      LYR.style.unique.palette = paletteKey;
+      LYR.style.unique.legend = items;
+
+      // (προαιρετικά) καθάρισε graduated
+      LYR.style.graduated.field = null;
+      LYR.style.graduated.breaks = [];
+      LYR.style.graduated.legend = [];
+
+    } else if(mode === 'graduated'){
+      const k = Math.max(3, Math.min(9, Number(sp.field.classes.value) || 5));
+      const nums = feats
+        .map(f => Number(f?.properties?.[field]))
+        .filter(x => isFinite(x));
+
+      if(nums.length === 0){
+        alert('Το πεδίο που επέλεξες δεν έχει αριθμητικές τιμές.');
+        return;
+      }
+
+      const br = quantiles(nums, k);
+      const paletteKey = sp.field.palette.value;
+      const cols = PALETTES[paletteKey] || PALETTES.viridis;
+
+      const grad = Array.from({length:k},(_,i)=>
+        cols[Math.floor(i * (cols.length - 1) / (k - 1))]
+      );
+
+      const bounds = [Math.min(...nums), ...br, Math.max(...nums)];
+      const legend = [];
+      for(let i=0;i<k;i++){
+        legend.push({
+          label: `${bounds[i].toFixed(2)} – ${bounds[i+1].toFixed(2)}`,
+          color: grad[i]
+        });
+      }
+
+      LYR.style.graduated.field = field;
+      LYR.style.graduated.classes = k;
+      LYR.style.graduated.palette = paletteKey;
+      LYR.style.graduated.breaks = br;
+      LYR.style.graduated.legend = legend;
+
+      // (προαιρετικά) καθάρισε unique
+      LYR.style.unique.field = null;
+      LYR.style.unique.legend = [];
+    }
+  }
+
+  // Rebuild leaflet layer with new style
+  map.removeLayer(LYR.leaflet);
+  LYR.leaflet = buildLeaflet(LYR);
+  if(LYR.visible) LYR.leaflet.addTo(map);
+
+  closeStylePanel();
+};
+
   sp.reset.onclick = ()=>{
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
     LYR.style = defaultStyle(LYR.kind);
