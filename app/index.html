@@ -2162,21 +2162,23 @@ function setLock(on){
       };
 
       const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
-      const size = byteLen(payloadPreview);
-      if (size > 10_000_000) {
-        const perLayer = state.layers.map((L,i) => ({
-          i: i+1,
-          name: L.name,
-          features: (L.gj.features || []).length,
-        }));
-        setBusy(false); setShareBusy(false);
-        alert(
-          `Το payload είναι πολύ μεγάλο (${(size/1e6).toFixed(2)} MB > 10.00 MB).\n` +
-          `Μείωσε features/απλούστευσε γεωμετρίες ή σπάσε σε 2 links.\n\n` +
-          `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
-        );
-        return;
-      }
+const size = byteLen(payloadPreview);
+if (size > 10_000_000) {
+  const perLayer = state.layers.map((L,i) => ({
+    i: i+1,
+    name: L.name,
+    features: (L.gj.features || []).length,
+  }));
+
+  alert(
+    `ΠΡΟΕΙΔΟΠΟΙΗΣΗ: Το payload είναι μεγάλο (${(size/1e6).toFixed(2)} MB > 10.00 MB).\n` +
+    `Μπορεί να αποτύχει στο upload (413). Αν αποτύχει, απλούστευσε/σπάσε layers.\n\n` +
+    `Layers:\n` + perLayer.map(r=>`#${r.i} ${r.name} — ${r.features} features`).join('\n')
+  );
+
+  // Δεν κάνουμε return εδώ — αφήνουμε τον server να αποφασίσει.
+}
+
 
       const r = await fetch('/api/stories', {
         method:'POST',
