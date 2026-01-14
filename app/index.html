@@ -494,6 +494,10 @@
   z-index: 2000;
   font: 12px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial;
 }
+  .vg-win__bar{
+  cursor: move;             /* ← ένδειξη ότι σέρνεται */
+  user-select: none;
+}
 
 html[data-theme="dark"] .vg-win{
   background: rgba(20,20,20,0.90);
@@ -2534,6 +2538,79 @@ document.addEventListener('keydown',(e)=>{
   const win = document.getElementById("legendWin");
   const body = document.getElementById("legendBody");
   const closeBtn = document.getElementById("legendClose");
+  // ---- Draggable legend window ----
+  const bar = win.querySelector('.vg-win__bar');
+  const STORE = 'vg-legend-geom';
+
+  function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+  function saveGeom(){
+    const r = win.getBoundingClientRect();
+    localStorage.setItem(STORE, JSON.stringify({
+      left: r.left,
+      top: r.top
+    }));
+  }
+
+  function loadGeom(){
+    const raw = localStorage.getItem(STORE);
+    if(!raw) return;
+    try{
+      const g = JSON.parse(raw);
+      if(Number.isFinite(g.left) && Number.isFinite(g.top)){
+        win.style.left = g.left + 'px';
+        win.style.top  = g.top  + 'px';
+        win.style.right = 'auto';
+        win.style.bottom = 'auto';
+      }
+    }catch{}
+  }
+
+  loadGeom();
+
+  let drag = null;
+
+  bar.addEventListener('mousedown', (e)=>{
+    if(e.button !== 0) return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const r = win.getBoundingClientRect();
+    drag = {
+      dx: e.clientX - r.left,
+      dy: e.clientY - r.top
+    };
+
+    win.style.left = r.left + 'px';
+    win.style.top  = r.top  + 'px';
+    win.style.right = 'auto';
+    win.style.bottom = 'auto';
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  });
+
+  function onMove(e){
+    if(!drag) return;
+
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const r = win.getBoundingClientRect();
+
+    const x = clamp(e.clientX - drag.dx, 6, vw - r.width - 6);
+    const y = clamp(e.clientY - drag.dy, 6, vh - r.height - 6);
+
+    win.style.left = x + 'px';
+    win.style.top  = y + 'px';
+  }
+
+  function onUp(){
+    if(!drag) return;
+    drag = null;
+    window.removeEventListener('mousemove', onMove);
+    window.removeEventListener('mouseup', onUp);
+    saveGeom();
+  }
 
   // μην “κλέβει” gestures του map
   ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
