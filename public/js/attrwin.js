@@ -198,8 +198,11 @@ search.addEventListener('input', ()=>{
 // --------- export CSV
 // --------- export CSV
 csvBtn.addEventListener('click', ()=>{
-  const outRows = (viewRows && viewRows.length) ? viewRows : dataRows;
-  if(!outRows.length) return;
+ const q = search.value.trim();
+const outRows = q ? viewRows : dataRows;
+// Αν έχεις φίλτρο αλλά 0 αποτελέσματα, θα βγάλει CSV με header μόνο (και 0 rows)
+if(!outRows) return;
+
 
   const cols = Array.from(
     outRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
