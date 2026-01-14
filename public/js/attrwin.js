@@ -196,16 +196,21 @@ search.addEventListener('input', ()=>{
 });
 
 // --------- export CSV
+// --------- export CSV
 csvBtn.addEventListener('click', ()=>{
-  if(!dataRows.length) return;
+  const outRows = (viewRows && viewRows.length) ? viewRows : dataRows;
+  if(!outRows.length) return;
+
   const cols = Array.from(
-    dataRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
+    outRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
   );
+
   const esc = (s)=> `"${String(s??'').replace(/"/g,'""')}"`;
   const lines = [
     cols.join(','),
-    ...dataRows.map(r => cols.map(c => esc(val(r[c]))).join(','))
+    ...outRows.map(r => cols.map(c => esc(val(r[c]))).join(','))
   ];
+
   const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -217,8 +222,9 @@ csvBtn.addEventListener('click', ()=>{
 // --------- public API
 export function openAttrWindow(rows, opts={}){
   dataRows = rows || [];
+  viewRows = dataRows; // <- σημαντικό: αρχικοποίηση του view
   titleEl.textContent = opts.title || 'Attribute Table';
-  renderTable(dataRows);
+  renderTable(viewRows);
   win.classList.remove('hidden');
   win.classList.remove('minimized');
   // μπροστά από άλλα floating panels
@@ -226,7 +232,8 @@ export function openAttrWindow(rows, opts={}){
 }
 export function setAttrData(rows){
   dataRows = rows || [];
-  renderTable(dataRows);
+  viewRows = dataRows; // <- reset view όταν αλλάζουν δεδομένα
+  renderTable(viewRows);
 }
 
 // init
