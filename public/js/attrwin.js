@@ -24,7 +24,8 @@ let state = {
 };
 
 let fullScreen = false;
-let dataRows = []; // τρέχον dataset για φιλτράρισμα/εξαγωγή
+let dataRows = []; // πλήρες dataset (πηγή)
+let viewRows = []; // αυτό που προβάλλεται αυτή τη στιγμή (μετά από search/sort)
 
 // --------- helpers
 function clamp(n, min, max) { return Math.max(min, Math.min(max, n)); }
@@ -129,25 +130,31 @@ document.addEventListener('keydown', (e)=>{
 let sortState = { col: null, dir: 1 }; // 1 asc, -1 desc
 
 function renderTable(rows){
-  if(!rows || !rows.length){
+  viewRows = rows || [];
+
+  if(!viewRows || !viewRows.length){
     thead.innerHTML = '';
     tbody.innerHTML = '<tr><td style="padding:18px;color:#9aa3b2;">Καμία εγγραφή</td></tr>';
     countEl.textContent = '0 rows';
     return;
   }
+
   // columns = union όλων των keys
   const cols = Array.from(
-    rows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
+    viewRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
   );
+
   thead.innerHTML = `<tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
-  tbody.innerHTML = rows.map(r=>{
+  tbody.innerHTML = viewRows.map(r=>{
     return `<tr>${cols.map(c=>`<td>${escapeHtml(val(r[c]))}</td>`).join('')}</tr>`;
   }).join('');
-  countEl.textContent = `${rows.length} rows • ${cols.length} columns`;
+
+  countEl.textContent = `${viewRows.length} rows • ${cols.length} columns`;
 
   // attach sort click handlers
   attachSortHandlers(cols);
 }
+
 
 function attachSortHandlers(cols){
   const hdrs = Array.from(thead.querySelectorAll('th'));
@@ -158,7 +165,7 @@ function attachSortHandlers(cols){
       const col = cols[idx];
       sortState.dir = (sortState.col === col) ? -sortState.dir : 1;
       sortState.col = col;
-      const rows = [...dataRows].sort((a,b)=>{
+      const rows = [...viewRows].sort((a,b)=>{
         const va = a[col]; const vb = b[col];
         const na = Number(va); const nb = Number(vb);
         const cmp = (Number.isFinite(na) && Number.isFinite(nb))
