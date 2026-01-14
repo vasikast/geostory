@@ -479,6 +479,102 @@
 .win-resize-handle{
   position:absolute; right:0; bottom:0; width:14px; height:14px; cursor:nwse-resize;
 }
+  /* Legend Window – ViewGIS Editor */
+.vg-win{
+  position: absolute;
+  right: 18px;
+  bottom: 90px;  /* αφήνει χώρο για τα κουμπιά κάτω δεξιά */
+  width: 260px;
+  max-height: 320px;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid rgba(0,0,0,0.16);
+  border-radius: 12px;
+  box-shadow: 0 10px 26px rgba(0,0,0,0.20);
+  overflow: hidden;
+  z-index: 2000;
+  font: 12px/1.3 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+html[data-theme="dark"] .vg-win{
+  background: rgba(20,20,20,0.90);
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: 0 10px 26px rgba(0,0,0,0.55);
+  color: rgba(255,255,255,0.92);
+}
+
+.vg-hidden{ display:none; }
+
+.vg-win__bar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(0,0,0,0.10);
+}
+html[data-theme="dark"] .vg-win__bar{
+  border-bottom-color: rgba(255,255,255,0.10);
+}
+
+.vg-win__title{
+  font-weight: 800;
+  font-size: 13px;
+}
+
+.vg-win__close{
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(0,0,0,0.06);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 28px;
+}
+html[data-theme="dark"] .vg-win__close{
+  background: rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.92);
+}
+
+.vg-win__body{
+  padding: 10px 12px;
+  overflow:auto;
+  max-height: 280px;
+}
+
+.vg-leg-layer{
+  margin: 10px 0 6px 0;
+  font-weight: 800;
+  font-size: 12px;
+  opacity: 0.95;
+}
+
+.vg-leg-item{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin: 6px 0;
+}
+
+.vg-leg-swatch{
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.25);
+  flex: 0 0 auto;
+}
+html[data-theme="dark"] .vg-leg-swatch{
+  border-color: rgba(255,255,255,0.25);
+}
+
+.vg-leg-label{
+  overflow:hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1 1 auto;
+}
+
+.vg-leg-empty{ opacity: 0.75; }
+
 </style>
 </head>
 <body>
@@ -486,9 +582,11 @@
     <header>
       <div class="brand"><div class="logo"></div><h1>GeoVisual Stories — Editor</h1></div>
       <div class="actions">
-        <button id="themeToggle" class="btn" title="Theme: toggle light/dark">🌗 Theme</button>
-        <button id="btnGenerate" class="btn primary" title="Δημιούργησε δημόσιο link για προβολή">Generate Link</button>
-      </div>
+  <button id="themeToggle" class="btn" title="Theme: toggle light/dark">🌗 Theme</button>
+  <button id="btnLegend" class="btn" title="Υπόμνημα">🗂 Legend</button>
+  <button id="btnGenerate" class="btn primary" title="Δημιούργησε δημόσιο link για προβολή">Generate Link</button>
+</div>
+
     </header>
 
     <aside class="sidebar">
@@ -534,6 +632,14 @@
     </aside>
 
     <section class="canvas"><div id="map"></div></section>
+    <!-- Legend Window -->
+<div id="legendWin" class="vg-win vg-hidden" role="dialog" aria-label="Υπόμνημα">
+  <div class="vg-win__bar">
+    <div class="vg-win__title">Υπόμνημα</div>
+    <button id="legendClose" class="vg-win__close" type="button" aria-label="Κλείσιμο">×</button>
+  </div>
+  <div id="legendBody" class="vg-win__body"></div>
+</div>
 
  <footer>v0.3 — Per-Layer Styling • Unique/Graduated • Attributes • Identify • Basemaps • (Opt) GeoPackage • Dark/Light • Data © OpenStreetMap contributors, Esri, OpenTopoMap</footer>
   </div>
@@ -939,11 +1045,11 @@ const NorthControl = L.Control.extend({
   onAdd() {
     const div = L.DomUtil.create('div', 'leaflet-control north-control');
     const card = L.DomUtil.create('div', 'north-card', div);
-    const nLab = L.DomUtil.create('div', 'north-N', card);
-    nLab.textContent = 'N';
+const nLab = L.DomUtil.create('div', 'north-N', card);
+nLab.textContent = 'N';
 
-    card.innerHTML += `
-      <svg viewBox="0 0 100 100" class="north-svg" aria-hidden="true">
+card.insertAdjacentHTML('beforeend', `
+  <svg viewBox="0 0 100 100" class="north-svg" aria-hidden="true">
         <defs>
           <linearGradient id="north-ring-grad" x1="0" y1="0" x2="1" y2="1">
             <stop offset="0%"   stop-color="var(--acc)"/>
@@ -1221,7 +1327,18 @@ function colorsForCategories(n, palette){
       const controls=document.createElement('div'); controls.style.display='flex'; controls.style.gap='6px';
 
       const eye=document.createElement('button'); eye.className='btn'; eye.textContent=L.visible?'👁':'🚫';
-      eye.onclick=()=>{ L.visible=!L.visible; if(L.visible) L.leaflet.addTo(map); else map.removeLayer(L.leaflet); eye.textContent=L.visible?'👁':'🚫'; };
+      eye.onclick=()=>{ 
+  L.visible=!L.visible; 
+  if(L.visible) L.leaflet.addTo(map); 
+  else map.removeLayer(L.leaflet); 
+  eye.textContent=L.visible?'👁':'🚫';
+
+  // update legend (all visible)
+  if (window.ViewGISLegend) {
+    window.ViewGISLegend.renderAllVisible(layers);
+  }
+};
+
 
       const tbl=document.createElement('button'); tbl.className='btn'; tbl.textContent='🧾'; tbl.title='Attribute table';
       tbl.onclick=()=> openAttrTable(L.id);
@@ -1238,7 +1355,16 @@ function colorsForCategories(n, palette){
           identify.btnEl?.classList.remove('primary','identify-on');
           document.getElementById('map').style.cursor = '';
         }
-        map.removeLayer(L.leaflet); layers = layers.filter(x=>x.id!==L.id); renderList();
+        map.removeLayer(L.leaflet);
+layers = layers.filter(x=>x.id!==L.id);
+renderList();
+
+// update legend if open
+const lg = document.getElementById('legendWin');
+if (window.ViewGISLegend && lg && !lg.classList.contains('vg-hidden')) {
+  window.ViewGISLegend.renderAllVisible(layers);
+}
+
       };
 
       controls.appendChild(eye);
@@ -1259,6 +1385,11 @@ function colorsForCategories(n, palette){
     leaflet.addTo(map);
     try{ map.fitBounds(leaflet.getBounds(),{padding:[20,20]}); }catch(_){}
     layers.push({ id,name,gj,leaflet,visible:true,kind,style,fields:fieldsFrom(gj) });
+    // update legend if open
+const lg = document.getElementById('legendWin');
+if (window.ViewGISLegend && lg && !lg.classList.contains('vg-hidden')) {
+  window.ViewGISLegend.renderAllVisible(layers);
+}
     renderList();
   }
 
@@ -1336,7 +1467,8 @@ function colorsForCategories(n, palette){
     const LYR = layers.find(x=>x.id===layerId);
     if(!LYR) return;
     sp.el.classList.add('active');
-    sp.title.textContent = `Style — ${escapeHtml(LYR.name)}`;
+sp.title.textContent = `Style — ${LYR.name}`;
+
     sp.geom.textContent = `Geometry: ${LYR.kind}`;
     sp.renderer.value = LYR.style.renderer;
     sp.single.fill.value = LYR.style.single.fill;
@@ -1584,8 +1716,15 @@ function rebuildLegendPreview(LYR){
   LYR.leaflet = buildLeaflet(LYR);
   if(LYR.visible) LYR.leaflet.addTo(map);
 
+    // --- Legend update (after Apply) ---
+  if (window.ViewGISLegend) {
+    window.ViewGISLegend.renderFromLayer(LYR);
+    window.ViewGISLegend.open();
+  }
+
   closeStylePanel();
 };
+
 
   sp.reset.onclick = ()=>{
     const LYR = layers.find(x=>x.id===sp.layerId); if(!LYR) return;
@@ -1594,6 +1733,11 @@ function rebuildLegendPreview(LYR){
     LYR.leaflet = buildLeaflet(LYR);
     if(LYR.visible) LYR.leaflet.addTo(map);
     openStylePanel(LYR.id);
+        // --- Legend update (after Reset) ---
+    if (window.ViewGISLegend) {
+      window.ViewGISLegend.renderFromLayer(LYR);
+      window.ViewGISLegend.open();
+    }
   };
 
   // ---------- ATTRIBUTE TABLE ----------
@@ -1657,7 +1801,7 @@ function rebuildLegendPreview(LYR){
       __fidToFeature.set(fid, f);
       return { __fid: fid, id: f.id ?? (i+1), ...f.properties };
     });
-    window.openAttrWindow(rows, { title: `Attributes • ${escapeHtml(LYR.name)}` });
+    window.openAttrWindow(rows, { title: `Attributes • ${LYR.name}` });
     const cntEl = document.getElementById('attrwin-count');
     if(cntEl) cntEl.textContent = `Rows: ${rows.length}`;
     const srch = document.getElementById('attrwin-search');
@@ -2356,15 +2500,146 @@ if (size > 10_000_000) {
   });
 
   // ESC κλείσιμο panels
-  document.addEventListener('keydown',(e)=>{
-    if(e.key!=='Escape') return;
-    const spEl = document.getElementById('stylePanel');
-    if(spEl && spEl.classList.contains('active')){ document.getElementById('spClose')?.click(); return; }
-    const sh = document.getElementById('sharewin');
-    if(sh && !sh.classList.contains('hidden')){ document.getElementById('sharewin-close')?.click(); return; }
-    const attr = document.getElementById('attrwin');
-    if(attr && !attr.classList.contains('hidden')){ document.getElementById('attrwin-close')?.click(); }
+  // ESC κλείσιμο panels (ΜΟΝΟ ΕΝΑΣ listener)
+document.addEventListener('keydown',(e)=>{
+  if(e.key!=='Escape') return;
+
+  const spEl = document.getElementById('stylePanel');
+  if(spEl && spEl.classList.contains('active')){
+    document.getElementById('spClose')?.click();
+    return;
+  }
+
+  const sh = document.getElementById('sharewin');
+  if(sh && !sh.classList.contains('hidden')){
+    document.getElementById('sharewin-close')?.click();
+    return;
+  }
+
+  const attr = document.getElementById('attrwin');
+  if(attr && !attr.classList.contains('hidden')){
+    document.getElementById('attrwin-close')?.click();
+    return;
+  }
+
+  const lg = document.getElementById('legendWin');
+  if(lg && !lg.classList.contains('vg-hidden')){
+    window.ViewGISLegend?.close();
+    return;
+  }
+});
+
+// ===== Legend Window (Editor) =====
+(function initLegendWindow(){
+  const win = document.getElementById("legendWin");
+  const body = document.getElementById("legendBody");
+  const closeBtn = document.getElementById("legendClose");
+
+  // μην “κλέβει” gestures του map
+  ['wheel','mousedown','dblclick','touchstart','pointerdown','contextmenu']
+    .forEach(ev => win.addEventListener(ev, e => e.stopPropagation(), { passive:true }));
+
+  closeBtn.addEventListener("click", (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    win.classList.add("vg-hidden");
   });
+
+  function esc(s){
+    return String(s ?? '').replace(/[&<>"']/g, m => ({
+      "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+    }[m]));
+  }
+
+  function item(color, label){
+    const c = color || "#3388ff";
+    return `
+      <div class="vg-leg-item">
+        <span class="vg-leg-swatch" style="background:${c}"></span>
+        <span class="vg-leg-label">${esc(label)}</span>
+      </div>
+    `;
+  }
+
+  function buildLegendHTMLFromLayer(LYR){
+    if(!LYR || !LYR.style) return `<div class="vg-leg-empty">Δεν υπάρχει symbology.</div>`;
+
+    const st = LYR.style;
+    let html = `<div class="vg-leg-layer">${esc(LYR.name || 'Layer')}</div>`;
+
+    // SINGLE
+    if(st.renderer === 'single' && st.single){
+      // Για poly/point δείχνουμε fill, για line δείχνουμε stroke
+      const swatch = (LYR.kind === 'line') ? st.single.stroke : st.single.fill;
+      html += item(swatch, 'Single symbol');
+      return html;
+    }
+
+    // UNIQUE
+    if(st.renderer === 'unique' && st.unique?.field){
+      const legend = Array.isArray(st.unique.legend) ? st.unique.legend : [];
+      if(!legend.length) return html + `<div class="vg-leg-empty">Κενό υπόμνημα.</div>`;
+      for(const c of legend){
+        const lbl = (c.label != null) ? c.label : (c.value != null ? String(c.value) : '');
+        html += item(c.color, lbl);
+      }
+      return html;
+    }
+
+    // GRADUATED
+    if(st.renderer === 'graduated' && st.graduated?.field){
+      const legend = Array.isArray(st.graduated.legend) ? st.graduated.legend : [];
+      if(!legend.length) return html + `<div class="vg-leg-empty">Κενό υπόμνημα.</div>`;
+      for(const r of legend){
+        html += item(r.color, r.label ?? '');
+      }
+      return html;
+    }
+
+    return html + `<div class="vg-leg-empty">Άγνωστος renderer.</div>`;
+  }
+
+  // API (ταιριάζει με τα calls που έχεις ήδη στο Apply/Reset)
+  window.ViewGISLegend = {
+    open(){ win.classList.remove("vg-hidden"); },
+    close(){ win.classList.add("vg-hidden"); },
+
+    // για συμβατότητα (αν θες να το καλέσεις αλλιώς)
+    render(styleDef, layerName){
+      // minimal fallback: δείξε layerName και 1 swatch αν βγάζεις “δική σου” δομή
+      let html = '';
+      if(layerName) html += `<div class="vg-leg-layer">${esc(layerName)}</div>`;
+      if(styleDef?.color) html += item(styleDef.color, styleDef.label ?? 'Style');
+      if(!html) html = `<div class="vg-leg-empty">Δεν υπάρχει symbology.</div>`;
+      body.innerHTML = html;
+    },
+
+    // ✅ αυτό που καλείς ήδη: renderFromLayer(LYR)
+    renderFromLayer(LYR){
+  body.innerHTML = buildLegendHTMLFromLayer(LYR);
+},
+
+renderAllVisible(allLayers){
+  const visible = (allLayers || []).filter(L => L.visible);
+  if (!visible.length){
+    body.innerHTML = `<div class="vg-leg-empty">Δεν υπάρχουν ορατά layers.</div>`;
+    return;
+  }
+  body.innerHTML = visible.map(L => buildLegendHTMLFromLayer(L)).join('');
+}
+
+  };
+  // Toggle button (header)
+document.getElementById('btnLegend')?.addEventListener('click', () => {
+  const hidden = win.classList.contains('vg-hidden');
+  if (hidden) {
+  window.ViewGISLegend.renderAllVisible?.(layers);
+  window.ViewGISLegend.open();
+}
+
+  else window.ViewGISLegend.close();
+});
+})();
 </script>
 </body>
 </html>
