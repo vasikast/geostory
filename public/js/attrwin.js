@@ -128,21 +128,35 @@ document.addEventListener('keydown', (e)=>{
 
 // --------- table rendering (+ sorting)
 let sortState = { col: null, dir: 1 }; // 1 asc, -1 desc
+let lastCols = []; // θυμόμαστε columns για CSV όταν viewRows είναι κενό
 
 function renderTable(rows){
   viewRows = rows || [];
 
-  if(!viewRows || !viewRows.length){
-    thead.innerHTML = '';
-    tbody.innerHTML = '<tr><td style="padding:18px;color:#9aa3b2;">Καμία εγγραφή</td></tr>';
-    countEl.textContent = '0 rows';
-    return;
+ if(!viewRows || !viewRows.length){
+  // Αν δεν υπάρχουν ορατές γραμμές, κράτα columns από το πλήρες dataset (αν υπάρχει)
+  if ((!lastCols || !lastCols.length) && dataRows && dataRows.length){
+    lastCols = Array.from(
+      dataRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
+    );
   }
+
+  thead.innerHTML = lastCols.length
+    ? `<tr>${lastCols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`
+    : '';
+
+  tbody.innerHTML = '<tr><td style="padding:18px;color:#9aa3b2;">Καμία εγγραφή</td></tr>';
+  countEl.textContent = '0 rows';
+  return;
+}
+
 
   // columns = union όλων των keys
   const cols = Array.from(
     viewRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
-  );
+);
+  lastCols = cols;
+
 
   thead.innerHTML = `<tr>${cols.map(c=>`<th>${escapeHtml(c)}</th>`).join('')}</tr>`;
   tbody.innerHTML = viewRows.map(r=>{
@@ -196,22 +210,34 @@ search.addEventListener('input', ()=>{
 });
 
 // --------- export CSV
-// --------- export CSV
 csvBtn.addEventListener('click', ()=>{
- const q = search.value.trim();
-const outRows = q ? viewRows : dataRows;
-// Αν έχεις φίλτρο αλλά 0 αποτελέσματα, θα βγάλει CSV με header μόνο (και 0 rows)
-if(!outRows) return;
+ const q = search.value.trim().toLowerCase();
 
 
-  const cols = Array.from(
-    outRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
-  );
+  // Αν υπάρχει φίλτρο, εξάγουμε το viewRows (ακόμα κι αν είναι 0).
+  // Αν δεν υπάρχει φίλτρο, εξάγουμε όλα τα dataRows.
+  const outRows = q ? viewRows : dataRows;
+
+  // Columns: αν έχουμε rows -> από τα rows, αλλιώς από lastCols (ή fallback από dataRows)
+  let cols = [];
+  if (outRows && outRows.length){
+    cols = Array.from(
+      outRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
+    );
+  } else if (lastCols && lastCols.length){
+    cols = lastCols;
+  } else if (dataRows && dataRows.length){
+    cols = Array.from(
+      dataRows.reduce((set, r)=>{ Object.keys(r).forEach(k=>set.add(k)); return set; }, new Set())
+    );
+  } else {
+    return; // τίποτα για export
+  }
 
   const esc = (s)=> `"${String(s??'').replace(/"/g,'""')}"`;
   const lines = [
     cols.join(','),
-    ...outRows.map(r => cols.map(c => esc(val(r[c]))).join(','))
+    ...(outRows || []).map(r => cols.map(c => esc(val(r[c]))).join(','))
   ];
 
   const blob = new Blob([lines.join('\n')], {type:'text/csv;charset=utf-8;'});
@@ -221,6 +247,7 @@ if(!outRows) return;
   a.click();
   URL.revokeObjectURL(a.href);
 });
+
 
 // --------- public API
 export function openAttrWindow(rows, opts={}){
