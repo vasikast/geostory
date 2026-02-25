@@ -1400,7 +1400,7 @@ function colorsForCategories(n, palette){
     const elList = document.getElementById('layerList');
     elList.innerHTML='';
     if(!layers.length){ elList.innerHTML='<div class="muted">Δεν υπάρχουν layers ακόμη.</div>'; return; }
-    layers.forEach(L=>{
+    layers.filter(L => !L.__internal).forEach(L=>{
       const row=document.createElement('div'); row.className='layer';
       const meta=document.createElement('div'); meta.className='meta';
       meta.innerHTML = `<div>${escapeHtml(L.name)}</div><small>${L.kind}</small>`;
@@ -2183,6 +2183,12 @@ function ensureCoordPinLayer(lat, lng){
     existing.leaflet = buildLeaflet(existing);
     if(existing.visible) existing.leaflet.addTo(map);
   }
+      // optional refresh hooks
+    // renderList(); // μόνο αν το internal φαίνεται (αν το κρύβεις, δεν χρειάζεται)
+    const lg = document.getElementById('legendWin');
+    if (window.ViewGISLegend && lg && !lg.classList.contains('vg-hidden')) {
+      window.ViewGISLegend.renderAllVisible(layers);
+    }
 }
 
 function parseLngLat(text){
@@ -2778,19 +2784,19 @@ if(userLayers.length > 3){
 }
 
       const state = {
-        title: document.getElementById('title').value || 'Untitled',
-        description: document.getElementById('desc').value || '',
-        basemap: currentBase,
-        center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
-        zoom: map.getZoom(),
-        layers: layers.map(L=>({
-          name: L.name,
-          gj: compactGeoJSON(L.gj),
-          visible: L.visible,
-          kind: L.kind,
-          style: L.style
-        }))
-      };
+  title: document.getElementById('title').value || 'Untitled',
+  description: document.getElementById('desc').value || '',
+  basemap: currentBase,
+  center: { lat: map.getCenter().lat, lng: map.getCenter().lng },
+  zoom: map.getZoom(),
+  layers: userLayers.map(L=>({
+    name: L.name,
+    gj: compactGeoJSON(L.gj),
+    visible: L.visible,
+    kind: L.kind,
+    style: L.style
+  }))
+};
 
       const payloadPreview = JSON.stringify({ ...state, ttlDays: 7 });
 const size = byteLen(payloadPreview);
@@ -3041,7 +3047,7 @@ document.addEventListener('keydown',(e)=>{
 },
 
 renderAllVisible(allLayers){
-  const visible = (allLayers || []).filter(L => L.visible);
+  const visible = (allLayers || []).filter(L => L.visible && !L.__internal);
   if (!visible.length){
     body.innerHTML = `<div class="vg-leg-empty">Δεν υπάρχουν ορατά layers.</div>`;
     return;
