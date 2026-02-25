@@ -1338,10 +1338,16 @@ function colorsForCategories(n, palette){
   function buildLeaflet(layer){
     const st = layer.style;
     const symb = (feature)=>{
-      if(st.renderer==='single'){
-        const s = st.single;
-        return { color: s.stroke, weight: s.width, fillColor: s.fill, fillOpacity: layer.kind==='line'?0 : s.opacity };
-      }
+     if(st.renderer==='single'){
+  const s = st.single;
+  return {
+    color: s.stroke,
+    weight: s.width,
+    opacity: s.opacity,                 // ✅ stroke opacity
+    fillColor: s.fill,
+    fillOpacity: layer.kind==='line' ? 0 : s.opacity
+  };
+}
       if(st.renderer==='unique' && st.unique.field){
         const v = feature.properties?.[st.unique.field];
         const item = st.unique.legend.find(x=> String(x.value)===String(v));
@@ -1349,14 +1355,20 @@ function colorsForCategories(n, palette){
         return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
       }
       if(st.renderer==='graduated' && st.graduated.field){
-        const val = Number(feature.properties?.[st.graduated.field]);
-        const br = st.graduated.breaks, cols = st.graduated.legend;
-        let idx = br.findIndex(b => val <= b); if(idx<0) idx = cols.length-1;
-        const color = cols[idx]?.color || '#999';
-        return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
-      }
-      return { color:'#4cc9f0', weight:2, fillColor:'#4361ee', fillOpacity:0.6 };
-    };
+  const val = Number(feature.properties?.[st.graduated.field]);
+
+  // ✅ No-data handling
+  if(!isFinite(val)){
+    return { color:'#888', weight:2, fillColor:'#888', fillOpacity: layer.kind==='line'?0 : 0.25 };
+  }
+
+  const br = st.graduated.breaks, cols = st.graduated.legend;
+  let idx = br.findIndex(b => val <= b);
+  if(idx < 0) idx = cols.length - 1;
+
+  const color = cols[idx]?.color || '#999';
+  return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
+}
 
     const pointToLayer = (feature, latlng)=>{
       if(!/Point$/.test(feature.geometry?.type||'')) return null;
@@ -2361,15 +2373,16 @@ function zoomForDenom(denom){
 }
 
   function parseScaleInput(s){
-    if(!s) return null;
-    s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
-    s = s.replace(/[.\s,]/g,'');
-    if(/k$/.test(s)) s = String(parseFloat(s)*1000);
-    if(/m$/.test(s)) s = String(parseFloat(s)*1_000_000);
-    const n = Number(s);
-    if(!isFinite(n) || n<=0) return null;
-    return n;
-  }
+  if(!s) return null;
+  s = String(s).trim().toLowerCase().replace(/^1\s*:\s*/,'');
+  s = s.replace(/\s+/g,'');          // μόνο κενά
+  s = s.replace(',', '.');           // κόμμα -> τελεία (decimal)
+  const mult = /k$/.test(s) ? 1e3 : /m$/.test(s) ? 1e6 : 1;
+  s = s.replace(/[km]$/,'');
+  const n = Number(s) * mult;
+  if(!isFinite(n) || n<=0) return null;
+  return n;
+}
 function setScreenDPI(dpi){
   localStorage.setItem('screenDPI', String(dpi));
   alert(`Saved screenDPI=${dpi}. Τώρα το 1:Χ θα ταιριάζει με χάρακα (με ίδιο browser zoom).`);
