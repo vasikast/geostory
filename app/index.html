@@ -20,6 +20,10 @@
 <!-- (Προαιρετικά) GeoPackage reader για browser -->
 <script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
 
+<!-- KML/KMZ → GeoJSON -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/@tmcw/togeojson@7.1.2/dist/togeojson.umd.js"></script>
+
 <!-- Turf.js για μετρήσεις -->
 <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
 
@@ -616,9 +620,9 @@ html[data-theme="dark"] .vg-leg-swatch{
         <h3>Αρχεία</h3>
         <div id="drop" class="dropzone">
           Σύρε εδώ αρχεία ή <label style="text-decoration:underline;cursor:pointer">
-            επίλεξε<input id="file" type="file" accept=".geojson,.json,.gpkg" multiple style="display:none">
+            επίλεξε<input id="file" type="file" accept=".geojson,.json,.gpkg,.kml,.kmz" multiple style="display:none">
           </label>
-          <div class="muted" style="margin-top:6px">Υποστήριξη: <b>GeoJSON</b> & <b>GeoPackage</b>*. Για Shapefile ➜ export σε GeoJSON.</div>
+          <div class="muted" style="margin-top:6px">Υποστήριξη: <b>GeoJSON</b>, <b>KML/KMZ</b> & <b>GeoPackage</b>*. Για Shapefile ➜ export σε GeoJSON.</div>
           <div class="muted">* Αν δεν χρειάζεσαι GeoPackage, αφαίρεσε το σχετικό &lt;script&gt; για μικρότερο μέγεθος.</div>
         </div>
       </div>
@@ -1407,15 +1411,84 @@ if (window.ViewGISLegend && lg && !lg.classList.contains('vg-hidden')) {
     const files=[...list];
     for(const f of files){
       const fn=f.name.toLowerCase();
+
       if(fn.endsWith('.geojson') || fn.endsWith('.json')){
-        try{ const gj=JSON.parse(await f.text()); addGeoJSON(f.name.replace(/\.(geo)?json$/i,''), gj); }
-        catch{ alert('Μη έγκυρο GeoJSON: '+f.name); }
-      } else if (fn.endsWith('.gpkg') && window.GeoPackage){
-        try { await loadGPKG(f); } catch{ alert('Πρόβλημα με GeoPackage: '+f.name); }
-      } else {
-        alert('Υποστήριξη: GeoJSON (.geojson) ή GeoPackage (.gpkg)');
+        try{
+          const gj=JSON.parse(await f.text());
+          addGeoJSON(f.name.replace(/\.(geo)?json$/i,''), gj);
+        } catch{
+          alert('Μη έγκυρο GeoJSON: '+f.name);
+        }
+        continue;
       }
+
+      if(fn.endsWith('.kml')){
+        if(!window.toGeoJSON){
+          alert('Λείπει η βιβλιοθήκη toGeoJSON για KML.');
+          continue;
+        }
+        try{
+          const gj = await kmlFileToGeoJSON(f);
+          addGeoJSON(f.name.replace(/\.kml$/i,''), gj);
+        } catch(err){
+          console.error(err);
+          alert('Πρόβλημα με KML: '+f.name);
+        }
+        continue;
+      }
+
+      if(fn.endsWith('.kmz')){
+        if(!window.JSZip || !window.toGeoJSON){
+          alert('Λείπει JSZip/toGeoJSON για KMZ.');
+          continue;
+        }
+        try{
+          const gj = await kmzFileToGeoJSON(f);
+          addGeoJSON(f.name.replace(/\.kmz$/i,''), gj);
+        } catch(err){
+          console.error(err);
+          alert('Πρόβλημα με KMZ: '+f.name);
+        }
+        continue;
+      }
+
+      if (fn.endsWith('.gpkg') && window.GeoPackage){
+        try {
+          await loadGPKG(f);
+        } catch{
+          alert('Πρόβλημα με GeoPackage: '+f.name);
+        }
+        continue;
+      }
+
+      alert('Υποστήριξη: GeoJSON (.geojson/.json), KML (.kml), KMZ (.kmz), GeoPackage (.gpkg)');
     }
+  }
+
+  async function kmlFileToGeoJSON(file){
+    const text = await file.text();
+    const xml = new DOMParser().parseFromString(text, 'text/xml');
+    // Basic XML parse error detection
+    if(xml.getElementsByTagName('parsererror')?.length){
+      throw new Error('KML parsererror');
+    }
+    const gj = window.toGeoJSON.kml(xml);
+    if(!gj || !gj.features || !gj.features.length) throw new Error('Empty KML');
+    return gj;
+  }
+
+  async function kmzFileToGeoJSON(file){
+    const zip = await window.JSZip.loadAsync(file);
+    const kmlName = Object.keys(zip.files).find(n => n.toLowerCase().endsWith('.kml'));
+    if(!kmlName) throw new Error('KMZ χωρίς KML');
+    const kmlText = await zip.files[kmlName].async('text');
+    const xml = new DOMParser().parseFromString(kmlText, 'text/xml');
+    if(xml.getElementsByTagName('parsererror')?.length){
+      throw new Error('KMZ(KML) parsererror');
+    }
+    const gj = window.toGeoJSON.kml(xml);
+    if(!gj || !gj.features || !gj.features.length) throw new Error('Empty KMZ/KML');
+    return gj;
   }
 
   async function loadGPKG(file){
