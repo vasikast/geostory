@@ -346,6 +346,28 @@
   min-width: 120px;
 }
 
+  /* --- Coordinates box (Long/Lat, EPSG:4326) --- */
+.coord-control{
+  background:#fff;
+  color:#000;
+  border:1px solid #000;
+  border-radius:10px;
+  padding:8px 10px;
+  min-width: 190px;
+  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+}
+
+.coord-value{
+  font-size:13px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+/* λίγο κενό από το scale bar */
+.leaflet-bottom.leaflet-left .coord-control{
+  margin-left: 10px;
+}
 /* scale bar – κάτω αριστερά, μικρότερο margin */
 .leaflet-bottom.leaflet-left {
   margin: 0 0 4px 4px;
@@ -2054,7 +2076,36 @@ const mPerPx = metersPerPixelAt(center, map.getZoom());
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
 
+// ---------- COORDINATES (Long, Lat — EPSG:4326) ----------
+const CoordControl = L.Control.extend({
+  options: { position: 'bottomleft' },
+  onAdd: function(){
+    const div = L.DomUtil.create('div', 'leaflet-control coord-control');
+   div.innerHTML = `<div class="coord-value">—</div>`;
 
+    L.DomEvent.disableClickPropagation(div);
+    L.DomEvent.disableScrollPropagation(div);
+
+    this._valueEl = div.querySelector('.coord-value');
+    return div;
+  },
+  setValue: function(text){
+    if(this._valueEl) this._valueEl.textContent = text;
+  }
+});
+
+const coordCtl = new CoordControl();
+map.addControl(coordCtl);
+
+map.on('mousemove', (e) => {
+  const lat = e.latlng.lat;
+  const lng = e.latlng.lng;
+  coordCtl.setValue(`Long: ${lng.toFixed(5)}   Lat: ${lat.toFixed(5)}`);
+});
+
+map.getContainer().addEventListener('mouseleave', () => {
+  coordCtl.setValue('—');
+});
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
 // === TRUE meters-per-pixel using Leaflet geometry (works for any CRS, retina, fractional zoom) ===
 function metersPerPixelAt(latlng, zoom){
