@@ -335,42 +335,92 @@
 }
 
   /* ΝΕΟ — το κρατάς */
-.scale-control {
-  background:#fff;
-  color:#000;
-  border:1px solid #000;
-  border-radius:6px;
-  padding:6px 8px;
+.scale-control{
+  background: color-mix(in oklab, var(--panel) 88%, transparent);
+  color: var(--text);
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  border-radius: 12px;
+  padding: 6px 8px;
   font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
-  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  box-shadow: 0 10px 28px rgba(0,0,0,.18);
+  backdrop-filter: saturate(1.2) blur(8px);
   min-width: 120px;
 }
 
-  /* --- Coordinates box (Long/Lat, EPSG:4326) --- */
+/* --- Coordinates box (modern) --- */
 .coord-control{
-  background:#fff;
-  color:#000;
-  border:1px solid #000;
-  border-radius:10px;
-  padding:8px 10px;
-  min-width: 190px;
-  box-shadow: 0 4px 14px rgba(0,0,0,.18);
+  background: color-mix(in oklab, var(--panel) 88%, transparent);
+  color: var(--text);
+  border: 1px solid color-mix(in oklab, var(--line) 85%, transparent);
+  border-radius: 12px;
+  padding: 8px 10px;
+  min-width: 210px;
+  box-shadow: 0 10px 28px rgba(0,0,0,.18);
+  backdrop-filter: saturate(1.2) blur(8px);
   font: 12px/1.2 system-ui, -apple-system, Segoe UI, Roboto, Arial;
+  cursor: pointer;
+  user-select: none;
+}
+
+.coord-control:hover{
+  border-color: color-mix(in oklab, var(--acc) 40%, var(--line));
 }
 
 .coord-value{
-  font-size:13px;
-  font-weight:700;
-  white-space:nowrap;
+  font-size: 13px;
+  font-weight: 500;     /* ✅ όχι bold */
+  white-space: nowrap;
+  letter-spacing: .01em;
+}
+
+.coord-sub{
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* edit mode */
+.coord-edit{
+  display:flex; gap:6px; align-items:center;
+}
+.coord-edit input{
+  width: 140px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: color-mix(in oklab, var(--panel) 92%, transparent);
+  color: var(--text);
+  font-size: 12px;
+}
+.coord-edit button{
+  padding: 6px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--acc);
+  color:#081226;
+  font-weight: 700;
+  cursor: pointer;
+}
+.coord-hint{
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--muted);
 }
 
 /* λίγο κενό από το scale bar */
 .leaflet-bottom.leaflet-left .coord-control{
   margin-left: 10px;
 }
-/* scale bar – κάτω αριστερά, μικρότερο margin */
-.leaflet-bottom.leaflet-left {
+/* bottom-left: scale + coords side-by-side */
+.leaflet-bottom.leaflet-left{
   margin: 0 0 4px 4px;
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control{
+  margin: 0; /* να μη "σπρώχνει" το Leaflet τα κουτιά */
 }
 
 /* measure+scale toolbar – κάτω δεξιά, επίσης πιο κοντά στα άκρα */
@@ -2076,35 +2126,203 @@ const mPerPx = metersPerPixelAt(center, map.getZoom());
 const scaleCtl = new ScaleControl();
 map.addControl(scaleCtl);
 
-// ---------- COORDINATES (Long, Lat — EPSG:4326) ----------
+// ---------- COORDINATES (EPSG:4326) — modern + editable + zoom + pin layer ----------
+let coordEditing = false;
+let lastMouseLL = null;
+
+// Pin layer as "normal" layer entry in your layers[] list
+const COORD_PIN_ID = 'lyr_coord_pin';
+
+function ensureCoordPinLayer(lat, lng){
+  // GeoJSON point feature
+  const gj = {
+    type: 'FeatureCollection',
+    features: [{
+      type: 'Feature',
+      properties: { name: 'Coord Pin' },
+      geometry: { type: 'Point', coordinates: [lng, lat] }
+    }]
+  };
+
+  let existing = layers.find(x => x.id === COORD_PIN_ID);
+
+  if(!existing){
+    const style = defaultStyle('point');
+    // choose a nice accent for the pin
+    style.single.fill = '#00d3a7';
+    style.single.stroke = '#0b1020';
+    style.single.pointSize = 8;
+    style.single.pointShape = 'circle';
+    style.single.opacity = 0.95;
+
+    const leaflet = buildLeaflet({ id: COORD_PIN_ID, gj, name:'📍 Coord Pin', style, kind:'point' });
+    leaflet.addTo(map);
+
+   layers.push({
+  id: COORD_PIN_ID,
+  name: '📍 Coord Pin',
+  gj,
+  leaflet,
+  visible: true,
+  kind: 'point',
+  style,
+  fields: ['name'],
+  __internal: true          // ✅ νέο: internal layer (δεν μετράει στο free limit)
+});
+
+    renderList();
+    // legend refresh if open
+    const lg = document.getElementById('legendWin');
+    if (window.ViewGISLegend && lg && !lg.classList.contains('vg-hidden')) {
+      window.ViewGISLegend.renderAllVisible(layers);
+    }
+  } else {
+    // update geometry + rebuild leaflet layer for correct rendering
+    existing.gj = gj;
+    map.removeLayer(existing.leaflet);
+    existing.leaflet = buildLeaflet(existing);
+    if(existing.visible) existing.leaflet.addTo(map);
+  }
+}
+
+function parseLngLat(text){
+  // accepts: "22.22, 37.55" or "22.22 37.55"
+  const s = String(text || '').trim().replace(/\s+/g,' ').replace(';',',');
+  const parts = s.includes(',') ? s.split(',') : s.split(' ');
+  if(parts.length < 2) return null;
+
+  const lng = Number(String(parts[0]).trim());
+  const lat = Number(String(parts[1]).trim());
+
+  if(!isFinite(lng) || !isFinite(lat)) return null;
+  if(lng < -180 || lng > 180) return null;
+  if(lat < -90 || lat > 90) return null;
+
+  return { lng, lat };
+}
+
 const CoordControl = L.Control.extend({
   options: { position: 'bottomleft' },
   onAdd: function(){
     const div = L.DomUtil.create('div', 'leaflet-control coord-control');
-   div.innerHTML = `<div class="coord-value">—</div>`;
+
+    div.innerHTML = `
+      <div class="coord-value" data-role="value">—</div>
+      <div class="coord-sub" data-role="sub">EPSG:4326 • click to enter coords</div>
+    `;
 
     L.DomEvent.disableClickPropagation(div);
     L.DomEvent.disableScrollPropagation(div);
 
-    this._valueEl = div.querySelector('.coord-value');
+    this._root = div;
+    this._valueEl = div.querySelector('[data-role="value"]');
+    this._subEl = div.querySelector('[data-role="sub"]');
+
+    div.addEventListener('click', (e)=>{
+      e.preventDefault();
+      e.stopPropagation();
+      this.enterEdit();
+    });
+
     return div;
   },
-  setValue: function(text){
-    if(this._valueEl) this._valueEl.textContent = text;
+
+  setDisplay: function(lng, lat){
+    if(!this._valueEl) return;
+    if(lng == null || lat == null){
+      this._valueEl.textContent = '—';
+      return;
+    }
+    // ✅ no "Long/Lat" words, just numbers
+    this._valueEl.textContent = `${lng.toFixed(5)}, ${lat.toFixed(5)}`;
+  },
+
+  enterEdit: function(){
+    if(coordEditing || !this._root) return;
+    coordEditing = true;
+
+    const cur = lastMouseLL
+      ? `${lastMouseLL.lng.toFixed(5)}, ${lastMouseLL.lat.toFixed(5)}`
+      : '';
+
+    this._root.innerHTML = `
+      <div class="coord-edit">
+        <input data-role="inp" type="text" placeholder="lng, lat" value="${cur}">
+        <button data-role="go" type="button">Go</button>
+      </div>
+      <div class="coord-hint">Enter: zoom • Esc: cancel</div>
+    `;
+
+    const inp = this._root.querySelector('[data-role="inp"]');
+    const go  = this._root.querySelector('[data-role="go"]');
+
+    const exit = (restore=true)=>{
+      coordEditing = false;
+      this._root.innerHTML = `
+        <div class="coord-value" data-role="value">—</div>
+        <div class="coord-sub" data-role="sub">EPSG:4326 • click to enter coords</div>
+      `;
+      this._valueEl = this._root.querySelector('[data-role="value"]');
+      this._subEl = this._root.querySelector('[data-role="sub"]');
+
+      // restore current display
+      if(restore && lastMouseLL) this.setDisplay(lastMouseLL.lng, lastMouseLL.lat);
+      else if(restore) this.setDisplay(null, null);
+    };
+
+    const apply = ()=>{
+      const parsed = parseLngLat(inp.value);
+      if(!parsed){
+        inp.focus();
+        inp.select();
+        return;
+      }
+      const { lng, lat } = parsed;
+
+      // zoom and place a pin
+      map.setView([lat, lng], Math.max(map.getZoom(), 16), { animate:true });
+      ensureCoordPinLayer(lat, lng);
+
+      // update display to typed coords
+      lastMouseLL = { lng, lat };
+      exit(true);
+    };
+
+    go.addEventListener('click', (e)=>{ e.preventDefault(); e.stopPropagation(); apply(); });
+
+    inp.addEventListener('keydown', (e)=>{
+      if(e.key === 'Enter'){
+        e.preventDefault(); e.stopPropagation(); apply();
+      }
+      if(e.key === 'Escape'){
+        e.preventDefault(); e.stopPropagation(); exit(true);
+      }
+    });
+
+    inp.addEventListener('blur', ()=>{
+      // μικρό delay για να μη "σπάει" όταν πατάς Go
+      setTimeout(()=>{ if(coordEditing) exit(true); }, 120);
+    });
+
+    setTimeout(()=>{ inp.focus(); inp.select(); }, 0);
   }
 });
 
 const coordCtl = new CoordControl();
 map.addControl(coordCtl);
 
+// update from mouse (only when not editing)
 map.on('mousemove', (e) => {
+  if(coordEditing) return;
   const lat = e.latlng.lat;
   const lng = e.latlng.lng;
-  coordCtl.setValue(`Long: ${lng.toFixed(5)}   Lat: ${lat.toFixed(5)}`);
+  lastMouseLL = { lng, lat };
+  coordCtl.setDisplay(lng, lat);
 });
 
 map.getContainer().addEventListener('mouseleave', () => {
-  coordCtl.setValue('—');
+  if(coordEditing) return;
+  coordCtl.setDisplay(null, null);
 });
   // ---------- MEASURE + SCALE INPUT + LOCK (TopRight Bar) ----------
 // === TRUE meters-per-pixel using Leaflet geometry (works for any CRS, retina, fractional zoom) ===
@@ -2546,16 +2764,18 @@ function setLock(on){
       setShareBusy(true, 'Generating…');
       setBusy(true);
 
-      if(layers.length === 0){
-        setBusy(false); setShareBusy(false);
-        alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.');
-        return;
-      }
-      if(layers.length > 3){
-        setBusy(false); setShareBusy(false);
-        alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.');
-        return;
-      }
+    const userLayers = layers.filter(L => !L.__internal);
+
+if(userLayers.length === 0){
+  setBusy(false); setShareBusy(false);
+  alert('Πρόσθεσε τουλάχιστον 1 layer για να δημιουργηθεί link.');
+  return;
+}
+if(userLayers.length > 3){
+  setBusy(false); setShareBusy(false);
+  alert('Μέγιστο 3 layers (free). Βγάλε κάποια και ξαναπροσπάθησε.');
+  return;
+}
 
       const state = {
         title: document.getElementById('title').value || 'Untitled',
