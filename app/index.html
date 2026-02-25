@@ -1093,9 +1093,14 @@ map.on('zoomstart', () => {
   }
 });
 
-let currentBase='osm'; 
-basemaps.osm.addTo(map); 
-map.setView([38,23.7],6);
+let currentBase='osm';
+basemaps.osm.addTo(map);
+map.setView([38,23.7], 6);
+
+// ✅ Fix: force Leaflet to recalc size after grid/layout paints
+requestAnimationFrame(() => map.invalidateSize(true));
+setTimeout(() => map.invalidateSize(true), 150);
+window.addEventListener('resize', () => map.invalidateSize(true));
 
   
 // Καθάρισε ΟΛΑ τα leaflet-ui toolbars & κουμπιά (κρατάμε μόνο το rotate API)
