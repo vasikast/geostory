@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>GeoVisual Stories — Editor</title>
 
-<!-- Leaflet (έκδοση που ξέρουμε ότι παίζει με leaflet-ui rotate) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
-<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<link rel="stylesheet"
+  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
 
 <!-- leaflet-ui 0.5.0 (JS μόνο – αρκετό για rotate/bearing) -->
 <script src="https://unpkg.com/leaflet-ui@0.5.0/dist/leaflet-ui.js"></script>
@@ -16,7 +20,7 @@
 <script src="https://unpkg.com/@ngageoint/geopackage/dist/geopackage.min.js"></script>
 
 <!-- KML/KMZ → GeoJSON -->
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
 <script src="https://unpkg.com/@tmcw/togeojson@7.1.2/dist/togeojson.umd.js"></script>
 
 <!-- Turf.js για μετρήσεις -->
