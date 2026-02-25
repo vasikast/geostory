@@ -932,18 +932,36 @@ html[data-theme="dark"] .vg-leg-swatch{
       window.addEventListener('mousemove', onDrag);
       window.addEventListener('mouseup', stopDrag);
     });
-    function onDrag(e){
-      if(!drag) return;
-      const x = Math.max(0, e.clientX - drag.ox);
-      const y = Math.max(0, e.clientY - drag.oy);
-      win.style.left = x + 'px';
-      win.style.top = y + 'px';
-    }
-    function stopDrag(){
-      window.removeEventListener('mousemove', onDrag);
-      window.removeEventListener('mouseup', stopDrag);
-      drag = null;
-    }
+   function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
+
+function onDrag(e){
+  if(!drag) return;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const r  = win.getBoundingClientRect();
+
+  const x = clamp(e.clientX - drag.ox, 6, vw - r.width  - 6);
+  const y = clamp(e.clientY - drag.oy, 6, vh - r.height - 6);
+
+  win.style.left = x + 'px';
+  win.style.top  = y + 'px';
+  win.style.right = 'auto';
+  win.style.bottom = 'auto';
+}
+    const SHARE_STORE = 'vg-sharewin-geom';
+
+function saveShareGeom(){
+  const r = win.getBoundingClientRect();
+  localStorage.setItem(SHARE_STORE, JSON.stringify({ left:r.left, top:r.top, w:r.width, h:r.height }));
+}
+
+function stopDrag(){
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', stopDrag);
+  drag = null;
+  saveShareGeom();
+}
 
     // Resize
     let rz = null;
@@ -957,17 +975,28 @@ html[data-theme="dark"] .vg-leg-swatch{
       window.addEventListener('mouseup', stopResize);
     });
     function onResize(e){
-      if(!rz) return;
-      const w = Math.max(420, rz.w + (e.clientX - rz.sx));
-      const h = Math.max(220, rz.h + (e.clientY - rz.sy));
-      win.style.width = w + 'px';
-      win.style.height = h + 'px';
-    }
+  if(!rz) return;
+
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const rect = win.getBoundingClientRect();
+
+  const minW = 420, minH = 220;
+  const maxW = vw - rect.left - 6;
+  const maxH = vh - rect.top  - 6;
+
+  const w = clamp(rz.w + (e.clientX - rz.sx), minW, Math.max(minW, maxW));
+  const h = clamp(rz.h + (e.clientY - rz.sy), minH, Math.max(minH, maxH));
+
+  win.style.width  = w + 'px';
+  win.style.height = h + 'px';
+}
     function stopResize(){
-      window.removeEventListener('mousemove', onResize);
-      window.removeEventListener('mouseup', stopResize);
-      rz = null;
-    }
+  window.removeEventListener('mousemove', onResize);
+  window.removeEventListener('mouseup', stopResize);
+  rz = null;
+  saveShareGeom();
+}
 
     function bringToFront(){
       const z = 100000 + (Date.now() % 10000);
@@ -981,7 +1010,22 @@ html[data-theme="dark"] .vg-leg-swatch{
     document.addEventListener('keydown', (e)=>{
       if(e.key==='Escape' && !win.classList.contains('hidden')) closeShareWindow();
     });
-
+// restore geometry (position + size)
+(function loadShareGeom(){
+  const raw = localStorage.getItem(SHARE_STORE);
+  if(!raw) return;
+  try{
+    const g = JSON.parse(raw);
+    if(Number.isFinite(g.left) && Number.isFinite(g.top)){
+      win.style.left = g.left + 'px';
+      win.style.top  = g.top  + 'px';
+      win.style.right = 'auto';
+      win.style.bottom = 'auto';
+    }
+    if(Number.isFinite(g.w)) win.style.width  = g.w + 'px';
+    if(Number.isFinite(g.h)) win.style.height = g.h + 'px';
+  }catch{}
+})();
     window.__openShareWindow = openShareWindow;
   })();
 
