@@ -6,13 +6,8 @@
 <title>GeoVisual Stories — Editor</title>
 
 <!-- Leaflet (έκδοση που ξέρουμε ότι παίζει με leaflet-ui rotate) -->
-<link rel="stylesheet"
-  href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-  crossorigin="" />
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-  crossorigin=""></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <!-- leaflet-ui 0.5.0 (JS μόνο – αρκετό για rotate/bearing) -->
 <script src="https://unpkg.com/leaflet-ui@0.5.0/dist/leaflet-ui.js"></script>
@@ -1384,78 +1379,83 @@ function colorsForCategories(n, palette){
       kind
     };
   }
-  function buildLeaflet(layer){
-    const st = layer.style;
-    const symb = (feature)=>{
-     if(st.renderer==='single'){
-  const s = st.single;
-  return {
-    color: s.stroke,
-    weight: s.width,
-    opacity: s.opacity,                 // ✅ stroke opacity
-    fillColor: s.fill,
-    fillOpacity: layer.kind==='line' ? 0 : s.opacity
-  };
-}
-      if(st.renderer==='unique' && st.unique.field){
-        const v = feature.properties?.[st.unique.field];
-        const item = st.unique.legend.find(x=> String(x.value)===String(v));
-        const color = item ? item.color : '#999';
-        return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
-      }
-      if(st.renderer==='graduated' && st.graduated.field){
-  const val = Number(feature.properties?.[st.graduated.field]);
+function buildLeaflet(layer){
+  const st = layer.style;
 
-  // ✅ No-data handling
-  if(!isFinite(val)){
-    return { color:'#888', weight:2, fillColor:'#888', fillOpacity: layer.kind==='line'?0 : 0.25 };
-  }
-
-  const br = st.graduated.breaks, cols = st.graduated.legend;
-  let idx = br.findIndex(b => val <= b);
-  if(idx < 0) idx = cols.length - 1;
-
-  const color = cols[idx]?.color || '#999';
-  return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0 : 0.6 };
-}
-
-    const pointToLayer = (feature, latlng)=>{
-      if(!/Point$/.test(feature.geometry?.type||'')) return null;
+  const symb = (feature) => {
+    if(st.renderer === 'single'){
       const s = st.single;
-      const style = symb(feature);
-      const size = st.renderer==='single' ? s.pointSize : 10;
-      const fill = style.fillColor || s.fill;
-      const stroke = style.color || s.stroke;
-      if(s.pointShape==='square'){
-        const html = `<div style="
-          width:${size*2}px;height:${size*2}px;
-          transform:translate(-50%,-50%);
-          background:${fill};
-          border:1px solid ${stroke};
-          opacity:${layer.kind==='line'?0:0.8};
-          border-radius:4px;"></div>`;
-        const icon = L.divIcon({ html, className:'', iconSize:[0,0] });
-        return L.marker(latlng, { icon, interactive:true });
-      }
-      return L.circleMarker(latlng,{ radius:size, color: stroke, weight:1, fillColor: fill, fillOpacity:0.8 });
-    };
+      return {
+        color: s.stroke,
+        weight: s.width,
+        opacity: s.opacity,
+        fillColor: s.fill,
+        fillOpacity: layer.kind === 'line' ? 0 : s.opacity
+      };
+    }
 
-    return L.geoJSON(layer.gj, {
-      pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
-      style: (f)=> symb(f),
-      onEachFeature:(f,l)=>{
-        l.on('click', (ev)=>{
-          if(!(identify.active && identify.layerId === layer.id)) return;
-          L.DomEvent.stop(ev);
-          const html = identifyPopupHtml(layer.name, f.properties||{});
-          L.popup({ closeButton:true, className:'identify-popup' })
-            .setLatLng(ev.latlng)
-            .setContent(html)
-            .openOn(map);
-        });
+    if(st.renderer === 'unique' && st.unique.field){
+      const v = feature.properties?.[st.unique.field];
+      const item = st.unique.legend.find(x => String(x.value) === String(v));
+      const color = item ? item.color : '#999';
+      return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0:0.6 };
+    }
+
+    if(st.renderer === 'graduated' && st.graduated.field){
+      const val = Number(feature.properties?.[st.graduated.field]);
+      if(!isFinite(val)){
+        return { color:'#888', weight:2, fillColor:'#888', fillOpacity: layer.kind==='line'?0:0.25 };
       }
-    });
-  }
+      const br = st.graduated.breaks, cols = st.graduated.legend;
+      let idx = br.findIndex(b => val <= b);
+      if(idx < 0) idx = cols.length - 1;
+      const color = cols[idx]?.color || '#999';
+      return { color, weight: 2, fillColor: color, fillOpacity: layer.kind==='line'?0:0.6 };
+    }
+
+    return { color:'#999', weight:2, fillColor:'#999', fillOpacity: layer.kind==='line'?0:0.6 };
+  };
+
+  const pointToLayer = (feature, latlng) => {
+    if(!/Point$/.test(feature.geometry?.type||'')) return null;
+
+    const s = st.single;
+    const style = symb(feature);
+    const size = (st.renderer === 'single') ? s.pointSize : 10;
+
+    const fill = style.fillColor || s.fill;
+    const stroke = style.color || s.stroke;
+
+    if(s.pointShape === 'square'){
+      const html = `<div style="
+        width:${size*2}px;height:${size*2}px;
+        transform:translate(-50%,-50%);
+        background:${fill};
+        border:1px solid ${stroke};
+        opacity:0.9;
+        border-radius:4px;"></div>`;
+      return L.marker(latlng, { icon: L.divIcon({ html, className:'', iconSize:[0,0] }) });
+    }
+
+    return L.circleMarker(latlng, { radius:size, color:stroke, weight:1, fillColor:fill, fillOpacity:0.8 });
+  };
+
+  return L.geoJSON(layer.gj, {
+    pointToLayer: (f,latlng)=> pointToLayer(f,latlng) || L.circleMarker(latlng,{radius:8,color:'#999',fillColor:'#999',fillOpacity:.7}),
+    style: (f)=> symb(f),
+    onEachFeature:(f,l)=>{
+      l.on('click', (ev)=>{
+        if(!(identify.active && identify.layerId === layer.id)) return;
+        L.DomEvent.stop(ev);
+        const html = identifyPopupHtml(layer.name, f.properties||{});
+        L.popup({ closeButton:true, className:'identify-popup' })
+          .setLatLng(ev.latlng)
+          .setContent(html)
+          .openOn(map);
+      });
+    }
+  });
+}
 
   function renderList(){
     const elList = document.getElementById('layerList');
